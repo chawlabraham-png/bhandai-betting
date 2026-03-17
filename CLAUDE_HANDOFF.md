@@ -3,9 +3,9 @@
 **To the Developer/AI (Claude):**
 You are picking up Sprint 3 of the Bhandai Exchange platform. We are building a demo betting exchange inspired by the UI/UX of Money247, but powered by simplified "Polymarket" style share-price mechanics.
 
-The Admin and Agent dashboards, alongside the core N-Tier hierarchy and credit flow, are **completely finished and working**. 
+The Admin and Agent dashboards (Sprints 1 & 2) are **currently in active development** by another team. While the core N-Tier hierarchy (Admin -> Agent -> Client) schema exists, please be aware this side of the platform is still evolving.
 
-Your singular focus is to build the **Client Dashboard & Trading Exchange (`exchange.html` and `client.html`)**.
+Your singular focus is to build the **Client Dashboard & Trading Exchange (`exchange.html` and `client.html`)** in isolation.
 
 ## 1. Project Architecture & State
 *   **Tech Stack:** Vanilla HTML, CSS (`styles.css`), Vanilla JavaScript, Supabase (Auth + Database).
