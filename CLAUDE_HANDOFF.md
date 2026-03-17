@@ -1,52 +1,47 @@
 # Bhandai Exchange - Developer Handoff & Architecture Guide
 
-**To the Developer/AI (Claude):**
-You are taking over the comprehensive development of the Bhandai Exchange platform. We are building a demo betting exchange inspired by the UI/UX of Money247, powered by simplified "Polymarket" style share-price mechanics.
+This project is currently being built by two developers simultaneously using AI assistance (Claude). 
 
-**Current Project State:**
-*   **Sprint 1 (Auth & Hierarchy):** Complete. Custom ID generation (A12345, C12345), role-based auth routing, and the Supabase `betting_users` schema are established and working securely.
-*   **Sprint 2 (Admin/Agent Dashboards):** In Progress. The UI/UX for `admin.html` and `agent.html` is built with high-fidelity Money247-style layouts (Dashboard Overview, User Management, Master Ledger, Risk Management, Match Control). The frontend forms for user creation and the base credit deduction logic are wired.
-*   **Sprint 3 (Client Exchange):** Unstarted.
+We are building a demo betting exchange inspired by the UI/UX of Money247, powered by simplified "Polymarket" style share-price mechanics.
 
-**Your Mission:**
-1.  **Complete Sprint 2:** Wire the remaining data into the new UI structures in `admin.html` and `agent.html`. Specifically, make the Master Ledger, Risk Management, and Match Control tabs dynamic by reading/writing to Supabase schemas that you will define.
-2.  **Architect & Build Sprint 3:** Design the backend order-matching schema and build the frontend Client Dashboard & Trading Exchange (`exchange.html` and `client.html`).
+## Current Project State (Baseline)
+*   **Authentication (`auth.js`):** Custom Alphanumeric Login IDs (e.g., A10001, C98765) are mapped to proxy emails (`c98765@bhandai.com`) to bypass Supabase's email requirement. **Do not break this.**
+*   **Database:** Supabase Auth + Database. Tables exist for `betting_users` (with hierarchy roles Admin -> Agent -> Client) and `credit_transactions` (the immutable ledger for coin flow).
+*   **Frontend UI:** High-fidelity Money247-style layouts are built for `admin.html` and `agent.html`.
 
-## 1. Project Architecture & Rules
-*   **Tech Stack:** Vanilla HTML, CSS (`styles.css`), Vanilla JavaScript, Supabase (Auth + Database).
-*   **Authentication (`auth.js`):** We use custom Alphanumeric Login IDs. `auth.js` maps these to proxy emails (e.g., `c12345@bhandai.com`). **Do not break `auth.js` or the UUID mappings.**
-*   **Credit System:** We do not use credit cards. Admins manually mint coins -> deposit to Agents -> deposit to Clients. The `balance` field in `betting_users` is the absolute source of truth. The `credit_transactions` table acts as the immutable ledger.
+---
 
-## 2. Supabase Configuration
-*   **URL:** `https://vtxuzrkwnyhxciohwjjx.supabase.co`
-*   **Anon Key:** `sb_publishable_c2TzMQIXnpvxbf5UIOmrYw_tABpS3yR`
+# 🚀 Track 1: Finishing the Admin & Agent Control Centers
+**Developer:** The Platform Owner
 
-## 3. Database Schema (Current)
-**Table: `betting_users`**
-*   `id` (uuid)
-*   `login_id` (varchar, e.g., 'C98765')
-*   `role` ('ADMIN', 'AGENT', 'CLIENT')
-*   `balance`, `credit_limit`, `partnership_share`, `match_commission`, `fancy_commission`
-*   `parent_id` (links Client to Agent)
+Your objective is to take the static, high-fidelity UI structures built in `admin.html` and `agent.html` and wire them completely to the backend database.
 
-**Table: `credit_transactions`**
-*   `id`, `sender_id`, `receiver_id`, `amount`, `transaction_type` ('DEPOSIT', 'WITHDRAWAL'), `created_at`
+**Your Mission (Sprint 1 & 2 Completion):**
+1.  **The Master Ledger:** Wire the Ledger tab to accurately reflect real-time agent/client balances and the total chip flow using the `credit_transactions` table.
+2.  **Match Control:** Build the Supabase schemas for `events` and `outcomes`. Wire the UI so Admins can create matches, pause betting, and manually settle markets.
+3.  **Risk Management Matrix:** Once the order book exists, wire the Risk Matrix to calculate "Worst Case Scenario" liability by reading the `orders` and `portfolio_positions` tables.
+4.  **Agent Dashboard:** Complete the downline client management and settlement logic in `agent.html`.
 
-## 4. Future Schema Requirements (For Sprint 3)
-You must design SQL schemas for:
-1.  `events` / `matches` (e.g., "India vs Australia")
-2.  `outcomes` ("India to Win")
-3.  `orders` (The Order Book: Back vs Lay, Price, Volume)
-4.  `portfolio_positions` (Tracking user liabilities and payouts)
+---
 
-## 5. The Client Exchange (Sprint 3 specifics)
-*   **Layout:** 3-column Money247 style (Sidebar, Center Order Book, Right Bet Slip).
-*   **Order Book:** Blue columns (BACK/Buy Yes), Pink columns (LAY/Buy No). Prices 0.01 to 0.99.
-*   **Mechanics:** Polymarket probability math. Cost = Stake. Potential Payout = Stake / Price.
-*   **Square Off (Cash Out):** Critical feature. Allow users to sell positions back into the order book at current market prices to lock profit or cut losses before match settlement.
+# 🚀 Track 2: Building the Client Exchange 
+**Developer:** The Collaborative Partner
 
-## 6. How to Start
-1.  Clone this repository: `git clone https://github.com/chawlabraham-png/bhandai-betting.git`
-2.  Start a local server: `npx http-server -p 8080`
-3.  Review `admin.html` and `agent.html` in the browser to see the high-fidelity UI state we built today for the Master Ledger and Match Control.
-4.  Determine your DB schema additions for events/markets, wire up the Admin controls, and then proceed to the Client Exchange.
+Your singular objective is to build Sprint 3: The Client Dashboard and Trading Exchange (`client.html` and `exchange.html`) in isolation. 
+
+**Your Mission (Sprint 3 Creation):**
+1.  **The Order Book UI:** Build a 3-column Money247 style layout (Sidebar, Center Order Book, Right Bet Slip). The center console must have Blue columns (BACK/Buy Yes) and Pink columns (LAY/Buy No).
+2.  **The Trading Schema:** Design and implement the SQL schemas for `orders` and `portfolio_positions`.
+3.  **Polymarket Mechanics:** Implement the math. Prices range from 0.01 to 0.99. Cost = Stake. Potential Payout = Stake / Price.
+4.  **Square Off (Cash Out):** This is the critical feature. Allow users to sell positions back into the order book at current market prices to lock in profit or cut losses before the match settles.
+
+## Important rules for Track 2:
+*   **Do not modify** `admin.html`, `agent.html`, or `auth.js`. The credit hierarchy and ledgers on the Admin side are handled by Track 1. Focus exclusively on the frontend Client Trading experience.
+*   Assume the `balance` field in the `betting_users` table is the absolute source of truth for funds. Deduct from it when a bet is placed.
+
+---
+
+## Technical Configuration
+*   **Repository:** `https://github.com/chawlabraham-png/bhandai-betting.git`
+*   **Supabase URL:** `https://vtxuzrkwnyhxciohwjjx.supabase.co`
+*   **Supabase Anon Key:** `sb_publishable_c2TzMQIXnpvxbf5UIOmrYw_tABpS3yR`
