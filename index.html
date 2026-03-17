@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bhandai Betting | Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <div class="auth-container">
+    <div class="auth-card">
+      <h1>Exchange Login</h1>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginId">Login ID (e.g. A12345 or C98765)</label>
+          <input type="text" id="loginId" class="form-input" required autocomplete="off" placeholder="Enter your ID">
+        </div>
+        <div class="form-group" style="position: relative;">
+          <label for="password">Password</label>
+          <input type="password" id="password" class="form-input" required placeholder="Enter your 6-digit pin" style="padding-right: 40px;">
+          <button type="button" id="togglePassword" style="position: absolute; right: 10px; top: 32px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;">
+            👁️
+          </button>
+        </div>
+        <button type="submit" class="btn-primary" id="loginBtn">Secure Login</button>
+        <div id="errorMsg" class="error-msg"></div>
+        <div style="text-align:center;margin-top:16px;font-size:0.85rem;color:var(--text-muted);">
+          Forgot your details? Contact your Agent for support.
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Shared Auth Configuration and Logic -->
+  <script src="auth.js"></script>
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const loginId = document.getElementById('loginId').value.trim().toUpperCase();
+      const password = document.getElementById('password').value;
+      const errorMsg = document.getElementById('errorMsg');
+      const btn = document.getElementById('loginBtn');
+
+      if (!loginId || !password) return;
+
+      errorMsg.textContent = '';
+      btn.textContent = 'Authenticating...';
+      btn.disabled = true;
+
+      try {
+        await window.AuthSystem.login(loginId, password);
+        // AuthSystem.login will handle redirects on success
+      } catch (err) {
+        errorMsg.textContent = err.message || 'Invalid credentials. Please try again.';
+      } finally {
+        btn.textContent = 'Secure Login';
+        btn.disabled = false;
+      }
+    });
+
+    // Check if implicitly already logged in
+    window.addEventListener('DOMContentLoaded', async () => {
+       await window.AuthSystem.verifySessionAndRedirect();
+       
+       // Password Toggle Logic
+       document.getElementById('togglePassword').addEventListener('click', function (e) {
+         const passwordInput = document.getElementById('password');
+         if (passwordInput.type === 'password') {
+           passwordInput.type = 'text';
+           this.textContent = '🙈';
+         } else {
+           passwordInput.type = 'password';
+           this.textContent = '👁️';
+         }
+       });
+    });
+  </script>
+</body>
+</html>

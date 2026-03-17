@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Client Dashboard | Bhandai Betting</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <header class="dashboard-header">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <h2 style="font-weight: 800; color: white;">Exchange</h2>
+      <span id="clientIdBadge" style="background:var(--accent-success)20;color:var(--accent-success);padding:4px 8px;border-radius:4px;font-family:monospace;font-weight:bold;font-size:0.8rem;"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:24px;">
+      <div style="text-align:right;">
+        <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Available Coins</div>
+        <div style="font-size:1.2rem;font-weight:800;color:var(--accent-brand);font-family:monospace;" id="clientBalance">0</div>
+      </div>
+      <button class="logout-btn">Log Out</button>
+    </div>
+  </header>
+
+  <main class="dashboard-content">
+    
+    <!-- 6 Module Grid Layout (Money247 Style) -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-top: 20px;">
+      
+      <!-- Module 1: In-Play -->
+      <a href="#" style="background: var(--bg-card); display: block; border: 1px solid var(--border-dim); border-radius: 12px; padding: 24px; text-align: center; color: white; transition: background 0.2s, transform 0.2s; text-decoration: none;" onmouseover="this.style.background='var(--bg-hover)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='var(--bg-card)';this.style.transform='none'">
+        <div style="font-size: 2.5rem; margin-bottom: 12px;">🏏</div>
+        <h3 style="margin-bottom: 8px;">In-Play</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem;">Live Cricket Markets</p>
+      </a>
+
+      <!-- Module 2: Upcoming -->
+      <a href="#" style="background: var(--bg-card); display: block; border: 1px solid var(--border-dim); border-radius: 12px; padding: 24px; text-align: center; color: white; transition: background 0.2s, transform 0.2s; text-decoration: none;" onmouseover="this.style.background='var(--bg-hover)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='var(--bg-card)';this.style.transform='none'">
+        <div style="font-size: 2.5rem; margin-bottom: 12px;">📅</div>
+        <h3 style="margin-bottom: 8px;">Upcoming</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem;">Future Matches & Events</p>
+      </a>
+
+      <!-- Module 3: Ledger -->
+      <a href="#" style="background: var(--bg-card); display: block; border: 1px solid var(--border-dim); border-radius: 12px; padding: 24px; text-align: center; color: white; transition: background 0.2s, transform 0.2s; text-decoration: none;" onmouseover="this.style.background='var(--bg-hover)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='var(--bg-card)';this.style.transform='none'">
+        <div style="font-size: 2.5rem; margin-bottom: 12px;">📘</div>
+        <h3 style="margin-bottom: 8px;">Ledger</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem;">Balance & Transaction Log</p>
+      </a>
+
+      <!-- Module 4: Account Statement -->
+      <a href="#" style="background: var(--bg-card); display: block; border: 1px solid var(--border-dim); border-radius: 12px; padding: 24px; text-align: center; color: white; transition: background 0.2s, transform 0.2s; text-decoration: none;" onmouseover="this.style.background='var(--bg-hover)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='var(--bg-card)';this.style.transform='none'">
+        <div style="font-size: 2.5rem; margin-bottom: 12px;">📊</div>
+        <h3 style="margin-bottom: 8px;">Account Statement</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem;">Detailed Financial History</p>
+      </a>
+
+      <!-- Module 5: Profit & Loss -->
+      <a href="#" style="background: var(--bg-card); display: block; border: 1px solid var(--border-dim); border-radius: 12px; padding: 24px; text-align: center; color: white; transition: background 0.2s, transform 0.2s; text-decoration: none;" onmouseover="this.style.background='var(--bg-hover)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='var(--bg-card)';this.style.transform='none'">
+        <div style="font-size: 2.5rem; margin-bottom: 12px;">📈</div>
+        <h3 style="margin-bottom: 8px;">Profit & Loss</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem;">Performance Tracking</p>
+      </a>
+
+      <!-- Module 6: Rules -->
+      <a href="#" onclick="document.getElementById('rulesModal').style.display='flex'; return false;" style="background: var(--bg-card); display: block; border: 1px solid var(--border-dim); border-radius: 12px; padding: 24px; text-align: center; color: white; transition: background 0.2s, transform 0.2s; text-decoration: none;" onmouseover="this.style.background='var(--bg-hover)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='var(--bg-card)';this.style.transform='none'">
+        <div style="font-size: 2.5rem; margin-bottom: 12px;">⚖️</div>
+        <h3 style="margin-bottom: 8px;">Rules</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem;">Terms & Conditions</p>
+      </a>
+
+    </div>
+  </main>
+
+  <!-- Rules Popup Modal (Appears on first login like Money247) -->
+  <div class="modal-overlay" id="rulesModal">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-dim); padding-bottom: 16px; margin-bottom: 16px;">
+        <h3 style="color: var(--accent-warning);">⚠ Important Exchange Rules</h3>
+        <button class="close-btn" onclick="document.getElementById('rulesModal').style.display='none'">×</button>
+      </div>
+      
+      <div style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; max-height: 60vh; overflow-y: auto; padding-right: 12px;">
+        <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 12px;">
+          <li><strong>Disputes:</strong> All management decisions are final. We retain the right to void any bet matching in case of obvious errors or technical failures.</li>
+          <li><strong>Settlement:</strong> Matches will be settled according to official governing body results (e.g., ICC). Any overturned decisions post-settlement will not affect payouts.</li>
+          <li><strong>Odds Integrity:</strong> In cases of suspected market manipulation or syndication, accounts will be suspended, and open positions voided.</li>
+          <li><strong>Market Closure:</strong> Under severe weather delays or match abandonment, matching will follow standard DLS par score guidelines or be refunded.</li>
+          <li><strong>Agent Liability:</strong> Clients are responsible for ensuring sufficient available balance before entering positions. Agents cannot reverse confirmed executed orders.</li>
+        </ul>
+      </div>
+
+      <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
+        <button class="btn-primary" style="width: auto; padding: 10px 32px;" onclick="acceptRules()">I Accept</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    let currentUser = null;
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      // 1. Enforce CLIENT role
+      const authData = await window.AuthSystem.requireRole('CLIENT');
+      if (!authData) return;
+      currentUser = authData.profile;
+      
+      document.getElementById('clientIdBadge').textContent = currentUser.login_id;
+      document.getElementById('clientBalance').textContent = currentUser.balance || 0;
+
+      // 2. Show rules modal if they haven't acknowledged it this session
+      if (!sessionStorage.getItem('rulesAcknowledged')) {
+        document.getElementById('rulesModal').style.display = 'flex';
+      }
+    });
+
+    function acceptRules() {
+      sessionStorage.setItem('rulesAcknowledged', 'true');
+      document.getElementById('rulesModal').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Dashboard | Bhandai Exchange</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      background: #0f172a;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      margin: 0;
+    }
+
+    /* Sidebar - Agent Specific Colors (Purple hue) */
+    .agent-sidebar {
+      width: 280px;
+      background: #1e1b4b; /* Deep purple background for agent */
+      border-right: 1px solid #312e81;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 24px;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: white;
+      border-bottom: 1px solid #312e81;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 0;
+      overflow-y: auto;
+    }
+
+    .nav-item {
+      padding: 12px 24px;
+      color: #a5b4fc;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .nav-item:hover {
+      background: rgba(255,255,255,0.05);
+      color: white;
+    }
+
+    .nav-item.active {
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      border-left: 3px solid #6366f1;
+    }
+
+    /* Main Content */
+    .admin-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .topbar {
+      height: 70px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 32px;
+    }
+
+    .content-area {
+      padding: 32px;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Quick Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .stat-title {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      color: white;
+      font-size: 1.8rem;
+      font-weight: 700;
+      font-family: monospace;
+    }
+
+    .stat-value.up { color: #10b981; }
+    .stat-value.down { color: #ef4444; }
+
+    /* Tables */
+    .table-container {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .table-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      background: #0f172a;
+      padding: 12px 24px;
+      color: #94a3b8;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 16px 24px;
+      border-bottom: 1px solid #334155;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+    }
+
+    tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    /* Action Buttons */
+    .action-btn {
+      background: #334155;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    
+    .action-btn:hover { background: #475569; }
+    .action-btn.deposit { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .action-btn.withdraw { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+    .form-group label {
+      color: #94a3b8; font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 8px;
+    }
+    .form-group input {
+      width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: white;
+      box-sizing: border-box;
+    }
+    
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="agent-sidebar">
+    <div class="sidebar-header">
+      <span style="font-size: 1.5rem;">💼</span>
+      Agent Panel
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" onclick="switchTab('dashboard')" id="nav-dashboard">📊 Agent Dashboard</div>
+      <div class="nav-item" onclick="switchTab('clients')" id="nav-clients">👥 Client Management</div>
+      <div class="nav-item" onclick="switchTab('ledger')" id="nav-ledger">💰 Ledger (My Bank)</div>
+      <div class="nav-item" onclick="switchTab('transactions')" id="nav-transactions">📝 Transaction Log</div>
+    </div>
+    <div style="padding: 24px; border-top: 1px solid #312e81; margin-top: auto;">
+       <div style="color: #a5b4fc; font-size: 0.8rem; margin-bottom: 8px; font-weight: 600;">MY AVAILABLE CREDIT</div>
+       <div style="font-family: monospace; font-size: 1.4rem; font-weight: bold; color: white;">🪙 <span id="agentCreditDisplay">0.00</span></div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="admin-main">
+    <header class="topbar">
+      <div style="color: #94a3b8; font-weight: 500;">Welcome back, <span id="agentIdDisplay" style="color: white; font-weight: 700;">--</span></div>
+      <button class="logout-btn" style="padding: 8px 24px; border-radius: 6px; background: #334155; color: white; border: none; font-weight: 600; cursor: pointer;">Log Out</button>
+    </header>
+
+    <div class="content-area">
+      
+      <!-- TAB: DASHBOARD -->
+      <div id="tab-dashboard" class="tab-content active">
+        <h2 style="color: white; margin-top: 0; margin-bottom: 24px;">Agent Overview</h2>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-title">My Total P&L</div>
+            <div class="stat-value up">+ 🪙 <span id="dashPnl">0</span></div>
+          </div>
+          <div class="stat-card">
+             <!-- The amount of coins this agent has handed out to clients that is currently unused -->
+            <div class="stat-title">Unused Client Balance</div>
+            <div class="stat-value">🪙 <span id="dashClientBal">0</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Total Active Clients</div>
+            <div class="stat-value" style="color: #818cf8;"><span id="dashClientsCount">0</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">My Commission Earned</div>
+            <div class="stat-value up" style="color: #f59e0b;">🪙 <span id="dashCommission">0.00</span></div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <div class="table-header">
+            <h3 style="margin: 0; color: white; font-weight: 600;">High-Value Clients (Watchlist)</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Client ID</th>
+                <th>Name</th>
+                <th>Current Balance</th>
+                <th>Profit/Loss</th>
+              </tr>
+            </thead>
+            <tbody id="topClientsTable">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: CLIENT MANAGEMENT -->
+      <div id="tab-clients" class="tab-content">
+        <div class="table-container">
+          <div class="table-header">
+            <h3 style="margin: 0; color: white; font-weight: 600;">Client Management</h3>
+            <div>
+              <button class="action-btn" style="background:#10b981;border-color:#10b981;color:white;padding:10px 20px;" onclick="openCreateModal('CLIENT')">+ Create New Client</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Client ID</th>
+                <th>Status</th>
+                <th>Phone</th>
+                <th>My Share (%)</th>
+                <th>Available Balance</th>
+                <th style="text-align: right;">Cashier Actions</th>
+              </tr>
+            </thead>
+            <tbody id="clientManagementTableBody">
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: LEDGER BOARD -->
+      <div id="tab-ledger" class="tab-content">
+        <h2 style="color: white; margin-top: 0; margin-bottom: 24px;">My Ledger (Up/Down Settlement)</h2>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;">
+             <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 24px; border-radius: 12px;">
+                 <div style="color: #ef4444; font-weight: 600; font-size: 0.9rem; margin-bottom: 8px;">I OWE ADMIN (UP)</div>
+                 <div style="font-family: monospace; font-size: 2rem; font-weight: bold; color: white;">🪙 0.00</div>
+             </div>
+             <div style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); padding: 24px; border-radius: 12px;">
+                 <div style="color: #10b981; font-weight: 600; font-size: 0.9rem; margin-bottom: 8px;">CLIENTS OWE ME (DOWN)</div>
+                 <div style="font-family: monospace; font-size: 2rem; font-weight: bold; color: white;">🪙 0.00</div>
+             </div>
+        </div>
+
+        <div class="table-container" style="background: #1e293b;">
+          <div class="table-header">
+             <h3 style="margin: 0; color: white; font-weight: 600;">Client Settlement Status</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Client ID</th>
+                <th>Total Deposits</th>
+                <th>Total Withdrawals</th>
+                <th>Net Settlement</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerTableBody">
+               <tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:24px;">No transactions linked yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- TAB: TRANSACTIONS -->
+      <div id="tab-transactions" class="tab-content">
+        <h2 style="color: white; margin-top: 0; margin-bottom: 24px;">Transaction Log</h2>
+        <div class="table-container">
+           <table>
+             <thead>
+               <tr>
+                 <th>Date</th>
+                 <th>Transaction Type</th>
+                 <th>From / To</th>
+                 <th style="text-align:right;">Amount</th>
+               </tr>
+             </thead>
+             <tbody id="transactionsTableBody">
+                 <!-- Populated via JS -->
+             </tbody>
+           </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Create Client Modal -->
+  <div class="modal-overlay" id="createUserModal" style="display:none;">
+    <div class="modal-content" style="background: #1e293b; border: 1px solid #334155; width: 450px;">
+      <div class="modal-header" style="border-bottom: 1px solid #334155;">
+        <h3 id="modalTitle" style="color: white; margin: 0;">Create New Client</h3>
+        <button class="close-btn" style="color: #94a3b8;" onclick="closeModal()">×</button>
+      </div>
+      
+      <div id="createFormSection" style="padding: 24px; max-height: 70vh; overflow-y: auto;">
+        <form id="createUserForm">
+          <input type="hidden" id="newUserRole" value="CLIENT">
+          
+          <div class="form-group" style="margin-bottom: 16px;">
+             <label>Full Name</label>
+             <input type="text" id="newUserName" required placeholder="e.g. Rahul Kumar">
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 16px;">
+             <label>Phone Number (10 digits)</label>
+             <input type="tel" id="newUserPhone" pattern="[0-9]{10}" maxlength="10" required title="Please enter exactly 10 digits" placeholder="9876543210">
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 16px;">
+             <label>Starting Deposit (🪙)</label>
+             <p style="font-size:0.75rem; color:#f59e0b; margin-top:-4px; margin-bottom:8px;">* This will be deducted from your Agent Balance (🪙 <span id="modalAgentBalance">0</span>).</p>
+             <input type="number" id="newUserLimit" style="font-family: monospace;" value="1000" min="0" required>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 24px;">
+             <label>Agent Partnership Share (%)</label>
+             <p style="font-size:0.75rem; color:#94a3b8; margin-top:-4px; margin-bottom:8px;">Your percentage of this client's Risk/Profit (Max 100%).</p>
+             <input type="number" id="newUserShare" min="0" max="100" step="1" value="0">
+          </div>
+
+          <button type="submit" id="createUserSubmit" style="width: 100%; padding: 14px; background: #6366f1; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 1rem;">Create Client & Generate ID</button>
+          <div id="createError" style="color: #ef4444; margin-top: 12px; text-align: center; font-size: 0.9rem;"></div>
+        </form>
+      </div>
+
+      <!-- Success Section -->
+      <div id="successSection" style="display:none; padding: 32px; text-align: center;">
+        <div style="color: #10b981; font-size: 4rem; margin-bottom: 16px; line-height: 1;">✓</div>
+        <h4 style="color: white; font-size: 1.25rem; margin-bottom: 8px;">Client Successfully Created</h4>
+        <p style="font-size: 0.9rem; color: #94a3b8; margin-bottom: 24px;">Share these credentials via WhatsApp securely. They cannot be recovered.</p>
+        
+        <div style="background: #0f172a; padding: 24px; border-radius: 8px; border: 1px dashed #334155; font-family: monospace; font-size: 1.1rem; color: white;">
+          <div style="margin-bottom: 12px;"><span style="color: #94a3b8;">Login ID:</span> <span id="generatedLoginId" style="font-weight: bold; color: #10b981;">--</span></div>
+          <div><span style="color: #94a3b8;">Password:</span> <span id="generatedPassword" style="font-weight: bold; color: #10b981;">--</span></div>
+        </div>
+
+        <button style="margin-top: 24px; width: 100%; padding: 14px; background: #334155; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;" onclick="closeModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    let currentUser = null;
+    let clientsData = [];
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const authData = await AuthSystem.requireRole('AGENT');
+      if (!authData) return;
+      currentUser = authData.profile;
+      
+      document.getElementById('agentIdDisplay').textContent = currentUser.login_id;
+      document.getElementById('agentCreditDisplay').textContent = parseFloat(currentUser.balance || 0).toLocaleString();
+      document.getElementById('modalAgentBalance').textContent = parseFloat(currentUser.balance || 0).toLocaleString();
+      
+      await loadData();
+    });
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById('nav-' + tabId).classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    }
+
+    async function loadData() {
+      // Agents only see THEIR clients (where parent_id matches their id)
+      const { data, error } = await supabase
+        .from('betting_users')
+        .select('*')
+        .eq('parent_id', currentUser.id)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error('Error fetching downline:', error);
+        return;
+      }
+
+      clientsData = data;
+      
+      renderDashboard(clientsData);
+      renderClientsManagement(clientsData);
+      loadTransactions();
+    }
+
+    function renderDashboard(clients) {
+       document.getElementById('dashClientsCount').textContent = clients.length;
+       const totalClientBal = clients.reduce((sum, u) => sum + parseFloat(u.balance || 0), 0);
+       document.getElementById('dashClientBal').textContent = totalClientBal.toLocaleString(undefined, {minimumFractionDigits: 2});
+
+       const tbody = document.getElementById('topClientsTable');
+       tbody.innerHTML = '';
+       if (clients.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">No clients created yet</td></tr>';
+       } else {
+          // Sort clients by balance descending to find "VIP" clients
+          const topClients = [...clients].sort((a,b) => parseFloat(b.balance) - parseFloat(a.balance)).slice(0, 5);
+          topClients.forEach(client => {
+             tbody.innerHTML += `
+              <tr>
+                <td style="font-family:monospace; color:white;">${client.login_id}</td>
+                <td>${client.name || '-'}</td>
+                <td style="font-family:monospace;">🪙 ${parseFloat(client.balance).toLocaleString()}</td>
+                <td style="color:#94a3b8;">N/A</td>
+              </tr>
+             `;
+          });
+       }
+    }
+
+    function renderClientsManagement(clients) {
+      const tbody = document.getElementById('clientManagementTableBody');
+      tbody.innerHTML = '';
+      
+      clients.forEach(user => {
+        const statusBadge = user.status === 'ACTIVE' ? '<span style="color:#10b981;">● Active</span>' : '<span style="color:#ef4444;">● Suspended</span>';
+        const share = user.partnership_share !== undefined ? user.partnership_share : 0;
+                           
+        tbody.innerHTML += `
+          <tr>
+            <td style="font-family:monospace;font-weight:bold;color:white;">${user.login_id}
+              <div style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">${user.name || ''}</div>
+            </td>
+            <td>${statusBadge}</td>
+            <td style="color:#94a3b8;">${user.phone || '-'}</td>
+            <td style="color:#e2e8f0; font-weight:600;">${share}%</td>
+            <td style="font-family:monospace;color:white;font-weight:bold;">🪙 ${parseFloat(user.balance || 0).toLocaleString()}</td>
+            <td style="text-align:right;">
+               <button class="action-btn deposit" onclick="promptDeposit('${user.id}', '${user.login_id}')">Deposit</button>
+               <button class="action-btn withdraw" onclick="promptWithdraw('${user.id}', '${user.login_id}')">Withdraw</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    async function loadTransactions() {
+        const { data, error } = await supabase
+            .from('credit_transactions')
+            .select('*')
+            .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+            .order('created_at', { ascending: false });
+            
+        if (error) return;
+        
+        const tbody = document.getElementById('transactionsTableBody');
+        tbody.innerHTML = '';
+        if(data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:24px;">No transactions recorded.</td></tr>';
+            return;
+        }
+
+        data.forEach(tx => {
+            const date = new Date(tx.created_at).toLocaleString();
+            const isSending = tx.sender_id === currentUser.id;
+            const amountColor = isSending ? '#ef4444' : '#10b981';
+            const sign = isSending ? '-' : '+';
+            const label = isSending ? 'Sent out' : 'Received';
+            
+            tbody.innerHTML += `
+             <tr>
+               <td style="color:#94a3b8;font-size:0.85rem;">${date}</td>
+               <td><span style="background:#334155;padding:4px 8px;border-radius:4px;font-size:0.8rem;">${tx.transaction_type}</span></td>
+               <td>${label}</td>
+               <td style="text-align:right;font-family:monospace;font-weight:bold;color:${amountColor};">
+                  ${sign} 🪙${parseFloat(tx.amount).toLocaleString(undefined, {minimumFractionDigits:2})}
+               </td>
+             </tr>
+            `;
+        });
+    }
+
+    /* Actions */
+    async function promptDeposit(receiverId, loginId) {
+       const amtStr = prompt(`Enter amount to DEDUCT from your Agent balance and DEPOSIT to Client ${loginId}:`);
+       const amount = parseFloat(amtStr);
+       if(!amount || isNaN(amount) || amount <= 0) return;
+
+       if(amount > parseFloat(currentUser.balance)) {
+           alert("Insufficient Agent Balance! You only have 🪙" + currentUser.balance);
+           return;
+       }
+
+       // Perform transaction
+       const newAdminBal = parseFloat(currentUser.balance) - amount;
+       
+       // Update Agent
+       await supabase.from('betting_users').update({ balance: newAdminBal }).eq('id', currentUser.id);
+       
+       // Update Client
+       const client = clientsData.find(c => c.id === receiverId);
+       const newClientBal = parseFloat(client.balance || 0) + amount;
+       await supabase.from('betting_users').update({ balance: newClientBal }).eq('id', receiverId);
+
+       // Log
+       await supabase.from('credit_transactions').insert({
+            sender_id: currentUser.id,
+            receiver_id: receiverId,
+            amount: amount,
+            transaction_type: 'DEPOSIT'
+       });
+
+       alert("Deposit Successful!");
+       window.location.reload();
+    }
+    
+    async function promptWithdraw(senderId, loginId) {
+       const amtStr = prompt(`Enter amount to WITHDRAW from Client ${loginId} and return to your Agent balance:`);
+       const amount = parseFloat(amtStr);
+       if(!amount || isNaN(amount) || amount <= 0) return;
+
+       const client = clientsData.find(c => c.id === senderId);
+       if(amount > parseFloat(client.balance || 0)) {
+           alert("Insufficient Client Balance!");
+           return;
+       }
+
+       const newClientBal = parseFloat(client.balance || 0) - amount;
+       const newAdminBal = parseFloat(currentUser.balance) + amount;
+       
+       await supabase.from('betting_users').update({ balance: newClientBal }).eq('id', senderId);
+       await supabase.from('betting_users').update({ balance: newAdminBal }).eq('id', currentUser.id);
+
+       await supabase.from('credit_transactions').insert({
+            sender_id: senderId,
+            receiver_id: currentUser.id,
+            amount: amount,
+            transaction_type: 'WITHDRAWAL'
+       });
+
+       alert("Withdrawal Successful!");
+       window.location.reload();
+    }
+
+    /* Modal & Creation Logic */
+    function openCreateModal(role) {
+      document.getElementById('createUserModal').style.display = 'flex';
+      document.getElementById('createFormSection').style.display = 'block';
+      document.getElementById('successSection').style.display = 'none';
+      document.getElementById('createUserForm').reset();
+      document.getElementById('createError').textContent = '';
+    }
+
+    function closeModal() {
+      document.getElementById('createUserModal').style.display = 'none';
+      window.location.reload();
+    }
+
+    document.getElementById('createUserForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('createUserSubmit');
+      const errorMsg = document.getElementById('createError');
+      
+      btn.textContent = 'Processing...';
+      btn.disabled = true;
+      errorMsg.textContent = '';
+      
+      try {
+        const role = 'CLIENT';
+        const name = document.getElementById('newUserName').value.trim();
+        const phone = document.getElementById('newUserPhone').value.trim();
+        const startBalance = parseFloat(document.getElementById('newUserLimit').value) || 0;
+        const share = parseFloat(document.getElementById('newUserShare').value) || 0;
+        
+        // 1. Check if agent has enough balance
+        if(startBalance > parseFloat(currentUser.balance)) {
+            throw new Error(`Insufficient funds. Your balance is 🪙${currentUser.balance}, but you are trying to issue 🪙${startBalance}.`);
+        }
+
+        const loginId = await AuthSystem.generateUniqueId(role);
+        const password = AuthSystem.generatePassword();
+        const email = AuthSystem.toEmail(loginId);
+        
+        const { data: authData, error: signupErr } = await supabase.auth.signUp({
+          email: email,
+          password: password,
+        });
+        
+        if (signupErr) throw new Error(signupErr.message);
+        
+        const { error: insertErr } = await supabase
+          .from('betting_users')
+          .insert({
+            id: authData.user.id,
+            login_id: loginId,
+            role: role,
+            name: name,
+            phone: phone,
+            parent_id: currentUser.id,
+            balance: startBalance,
+            credit_limit: startBalance,
+            partnership_share: share
+          });
+          
+        if (insertErr) throw new Error(insertErr.message); 
+
+        // 2. Deduct from Agent and Log
+        if (startBalance > 0) {
+            const newAdminBal = parseFloat(currentUser.balance) - startBalance;
+            await supabase.from('betting_users').update({ balance: newAdminBal }).eq('id', currentUser.id);
+            
+            await supabase.from('credit_transactions').insert({
+                sender_id: currentUser.id,
+                receiver_id: authData.user.id,
+                amount: startBalance,
+                transaction_type: 'DEPOSIT'
+            });
+        }
+
+        // Show Success
+        document.getElementById('createFormSection').style.display = 'none';
+        document.getElementById('successSection').style.display = 'block';
+        document.getElementById('generatedLoginId').textContent = loginId;
+        document.getElementById('generatedPassword').textContent = password;
+        
+      } catch(err) {
+        errorMsg.textContent = err.message;
+      } finally {
+        btn.textContent = 'Create Client & Generate ID';
+        btn.disabled = false;
+      }
+    });
+
+    document.querySelector('.logout-btn').addEventListener('click', () => {
+      AuthSystem.logout();
+    });
+  </script>
+</body>
+</html>

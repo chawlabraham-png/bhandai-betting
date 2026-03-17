@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Seed Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; padding: 40px; background: #0f172a; color: white; text-align: center; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #3b82f6; color: white; border: none; border-radius: 8px; }
+        #status { margin-top: 20px; font-family: monospace; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h2>Create Root Admin (A12345)</h2>
+    <p>Click below to securely create the Admin user in Supabase.</p>
+    <button id="seedBtn">Seed Admin</button>
+    <div id="status"></div>
+
+    <script src="auth.js"></script>
+    <script>
+        document.getElementById('seedBtn').addEventListener('click', async () => {
+            const statusDiv = document.getElementById('status');
+            const btn = document.getElementById('seedBtn');
+            btn.disabled = true;
+            statusDiv.textContent = 'Creating Admin...';
+
+            const loginId = 'A12345';
+            const password = '112233';
+            const email = AuthSystem.toEmail(loginId);
+
+            try {
+                // 1. Sign up auth user
+                const { data: authData, error: signupErr } = await supabase.auth.signUp({
+                    email: email,
+                    password: password
+                });
+
+                if (signupErr) throw new Error(signupErr.message);
+
+                // Wait a moment for Supabase triggers if any
+                await new Promise(r => setTimeout(r, 1000));
+
+                // 2. Insert into betting_users (requires RLS policy allowing it or doing it synchronously)
+                // Note: If the user already exists in auth, signUp might return an empty user unless email confirmation is disabled, but for this demo standard config usually logs them in.
+                if (authData.user) {
+                     const { error: insertErr } = await supabase
+                        .from('betting_users')
+                        .upsert({
+                            id: authData.user.id,
+                            login_id: loginId,
+                            role: 'ADMIN',
+                            name: 'Master Admin',
+                        }, { onConflict: 'login_id' });
+                        
+                     if (insertErr) throw new Error("betting_users insert error: " + insertErr.message);
+                }
+
+                statusDiv.innerHTML = `<span style="color:#10b981">Success! Admin account created.</span><br><br>Login ID: <b>${loginId}</b><br>Password: <b>${password}</b><br><br><a href="index.html" style="color:#3b82f6">Go to Login</a>`;
+            } catch(e) {
+                statusDiv.innerHTML = `<span style="color:#ef4444">Error: ${e.message}</span>`;
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exchange | Match</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    /* Specific Exchange Layout */
+    .exchange-container {
+      display: grid;
+      grid-template-columns: 250px 1fr 300px;
+      gap: 20px;
+      padding: 80px 20px 20px;
+      max-width: 1600px;
+      margin: 0 auto;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .exchange-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-dim);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      background: var(--surface-bg);
+      padding: 12px 16px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Money247 Colors */
+    .btn-back {
+      background: #72BBEF;
+      color: #000;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 12px;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.1s;
+    }
+    .btn-back:hover { background: #5a9bc9; }
+    
+    .btn-lay {
+      background: #FAA9BA;
+      color: #000;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 12px;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.1s;
+    }
+    .btn-lay:hover { background: #d98898; }
+
+    .odds-row {
+      display: grid;
+      grid-template-columns: 1fr 140px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-dim);
+      align-items: center;
+    }
+
+    .odds-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+
+    .odds-subtext {
+      font-size: 0.70rem;
+      color: rgba(0,0,0,0.6);
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* Bet Slip specific */
+    .bet-slip-item {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-dim);
+    }
+
+    .slip-input-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    
+    .slip-input {
+      width: 100%;
+      background: var(--bg-dark);
+      border: 1px solid var(--border-dim);
+      color: white;
+      padding: 8px;
+      border-radius: 4px;
+      text-align: right;
+    }
+
+    .slip-btn {
+      width: 100%;
+      padding: 12px;
+      margin-top: 16px;
+      font-weight: bold;
+      border-radius: 4px;
+      cursor: pointer;
+      border: none;
+      color: white;
+    }
+    
+    .slip-btn.back { background: #2e8bc0; }
+    .slip-btn.lay { background: #c04c64; }
+
+    /* Navigation list */
+    .match-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      overflow-y: auto;
+    }
+    .match-list li {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-dim);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .match-list li:hover { background: var(--surface-bg); }
+    .match-list li.active { background: rgba(59, 130, 246, 0.1); border-left: 3px solid var(--accent-primary); }
+
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <div class="nav-left">
+      <div class="logo">Bhandai Exchange</div>
+      <a href="client.html" class="nav-link">Dashboard</a>
+      <a href="portfolio.html" class="nav-link">Portfolio</a>
+    </div>
+    <div class="nav-right">
+      <div class="user-badge">
+        <span id="clientIdBadge" style="font-weight: 600;">--</span>
+        <span style="color: var(--text-muted); margin: 0 8px;">|</span>
+        <span style="color: var(--accent-success);">🪙 <span id="clientBalance">--</span></span>
+      </div>
+      <button class="btn-primary logout-btn" style="padding: 6px 16px; border-radius: 40px; font-size: 0.85rem;">Logout</button>
+    </div>
+  </header>
+
+  <div class="exchange-container">
+    
+    <!-- LEFT: Match Selector -->
+    <div class="exchange-panel">
+      <div class="panel-header">In-Play Cricket</div>
+      <ul class="match-list" id="matchList">
+        <li class="active">
+          <strong>Chennai Super Kings vs Mumbai Indians</strong><br>
+          <span style="font-size: 0.8rem; color: var(--accent-success);">● Live</span>
+        </li>
+        <li>
+          <strong>Royal Challengers Bangalore vs Kolkata Knight Riders</strong><br>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Starts in 2h</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- MIDDLE: Main Order Book -->
+    <div class="exchange-panel">
+      <div class="panel-header" style="justify-content: flex-start; gap: 12px;">
+         <span style="background: var(--accent-danger); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">LIVE</span>
+         <span id="matchTitleHeader">Chennai Super Kings vs Mumbai Indians</span>
+      </div>
+      
+      <div style="padding: 16px; border-bottom: 1px solid var(--border-dim); display: flex; justify-content: space-between;">
+        <h3 style="margin:0;">Match Odds</h3>
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Matched: 🪙 25,400</span>
+      </div>
+
+      <!-- Headers -->
+      <div class="odds-row" style="background: var(--surface-bg); padding: 8px 16px;">
+        <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Outcome</div>
+        <div class="odds-buttons">
+          <div style="text-align: center; color: #72BBEF; font-size: 0.85rem; font-weight: 600;">Back</div>
+          <div style="text-align: center; color: #FAA9BA; font-size: 0.85rem; font-weight: 600;">Lay</div>
+        </div>
+      </div>
+
+      <!-- Runner 1 -->
+      <div class="odds-row" id="row-csk">
+        <div style="font-weight: 600;">Chennai Super Kings</div>
+        <div class="odds-buttons">
+          <!-- Back = Buying Yes shares. 55¢ -> Odds: 1.81 -->
+          <button class="btn-back" onclick="openBetSlip('Chennai Super Kings', 'BACK', 1.81, 0.55)">
+            1.81
+            <span class="odds-subtext">Buy shares @ 55¢</span>
+          </button>
+          <!-- Lay = Selling Yes shares (or buying No). 58¢ -> Odds: 1.72 -->
+          <button class="btn-lay" onclick="openBetSlip('Chennai Super Kings', 'LAY', 1.72, 0.58)">
+            1.72
+            <span class="odds-subtext">Sell shares @ 58¢</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Runner 2 -->
+      <div class="odds-row" id="row-mi">
+        <div style="font-weight: 600;">Mumbai Indians</div>
+        <div class="odds-buttons">
+          <!-- Back = Buying Yes shares. 42¢ -> Odds: 2.38 -->
+          <button class="btn-back" onclick="openBetSlip('Mumbai Indians', 'BACK', 2.38, 0.42)">
+            2.38
+            <span class="odds-subtext">Buy shares @ 42¢</span>
+          </button>
+          <!-- Lay = Selling Yes shares. 45¢ -> Odds: 2.22 -->
+          <button class="btn-lay" onclick="openBetSlip('Mumbai Indians', 'LAY', 2.22, 0.45)">
+            2.22
+            <span class="odds-subtext">Sell shares @ 45¢</span>
+          </button>
+        </div>
+      </div>
+      
+      <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+        <p><strong>How the math works:</strong></p>
+        <p style="margin-top: 8px; line-height: 1.5;">This is a continuous Order Book. "Backing" means buying shares of the outcome (1 share pays out 1 coin if it wins). "Laying" means taking the other side of that trade.</p>
+        <p style="margin-top: 8px;">Odds shown are exactly <code>1 / Share Price</code>.</p>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Bet Slip -->
+    <div class="exchange-panel">
+      <div class="panel-header">Bet Slip</div>
+      
+      <div id="emptySlip" style="padding: 32px 16px; text-align: center; color: var(--text-muted);">
+        Click on the odds to add a selection to your betslip.
+      </div>
+
+      <div id="activeSlip" style="display: none; height: 100%; display: flex; flex-direction: column;">
+        <div class="bet-slip-item" id="slipBox" style="background: rgba(114, 187, 239, 0.1); border-left: 4px solid #72BBEF;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <span id="slipType" style="font-weight: 800; font-size: 0.85rem; color: #72BBEF;">BACK</span>
+              <div style="font-weight: 600; margin-top: 4px;" id="slipSelection">Chennai Super Kings</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">Match Odds</div>
+            </div>
+            <button style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;" onclick="closeBetSlip()">×</button>
+          </div>
+
+          <div class="slip-input-group">
+            <div style="flex: 1;">
+              <label style="font-size: 0.8rem; color: var(--text-muted);">Odds</label>
+              <input type="text" id="slipOdds" class="slip-input" readonly>
+              <div id="slipSharePrice" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; text-align: right;">--</div>
+            </div>
+            <div style="flex: 1.5;">
+              <label style="font-size: 0.8rem; color: var(--text-muted);">Total Stake (🪙)</label>
+              <input type="number" id="slipStake" class="slip-input" placeholder="0" min="1" oninput="calculateReturns()">
+            </div>
+          </div>
+        </div>
+
+        <div style="padding: 16px; background: var(--surface-bg); margin-top: auto;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="color: var(--text-muted);">Liability / Cost</span>
+            <strong id="slipLiability">🪙 0.00</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+            <span style="color: var(--text-muted);">Potential Profit</span>
+            <strong id="slipProfit" style="color: var(--accent-success);">🪙 0.00</strong>
+          </div>
+          
+          <button id="placeBetBtn" class="slip-btn back" onclick="executeTrade()">Place Order</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    let currentUser = null;
+    let currentSlip = null;
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const authData = await window.AuthSystem.requireRole('CLIENT');
+      if (!authData) return;
+      currentUser = authData.profile;
+      
+      document.getElementById('clientIdBadge').textContent = currentUser.login_id;
+      document.getElementById('clientBalance').textContent = currentUser.balance || 0;
+      
+      // Hide active slip initially
+      document.getElementById('activeSlip').style.display = 'none';
+    });
+
+    function openBetSlip(selection, type, odds, sharePrice) {
+      currentSlip = { selection, type, odds, sharePrice };
+      
+      document.getElementById('emptySlip').style.display = 'none';
+      document.getElementById('activeSlip').style.display = 'flex';
+      
+      document.getElementById('slipSelection').textContent = selection;
+      document.getElementById('slipType').textContent = type;
+      document.getElementById('slipOdds').value = odds;
+      document.getElementById('slipSharePrice').textContent = `(Buying 1 share = ${sharePrice}🪙)`;
+      
+      // Styling based on Back/Lay
+      const slipBox = document.getElementById('slipBox');
+      const slipType = document.getElementById('slipType');
+      const btn = document.getElementById('placeBetBtn');
+      
+      if (type === 'BACK') {
+        slipBox.style.background = 'rgba(114, 187, 239, 0.1)';
+        slipBox.style.borderLeftColor = '#72BBEF';
+        slipType.style.color = '#72BBEF';
+        btn.className = 'slip-btn back';
+      } else {
+        slipBox.style.background = 'rgba(250, 169, 186, 0.1)';
+        slipBox.style.borderLeftColor = '#FAA9BA';
+        slipType.style.color = '#FAA9BA';
+        btn.className = 'slip-btn lay';
+      }
+      
+      document.getElementById('slipStake').value = '';
+      calculateReturns();
+    }
+
+    function closeBetSlip() {
+      currentSlip = null;
+      document.getElementById('activeSlip').style.display = 'none';
+      document.getElementById('emptySlip').style.display = 'block';
+    }
+
+    function calculateReturns() {
+      if (!currentSlip) return;
+      
+      const stakeInput = parseFloat(document.getElementById('slipStake').value) || 0;
+      
+      // Polymarket Math:
+      // If Back (Buy Yes):
+      // Cost (Liability) = Stake. 
+      // Number of shares bought = Stake / SharePrice
+      // Payout if win = Number of Shares * 1.00
+      // Profit = Payout - Stake
+      
+      let liability = 0;
+      let profit = 0;
+      
+      // In this hybrid, "Stake" means exactly how much the user wants to risk out of pocket.
+      liability = stakeInput; 
+      const shares = stakeInput / currentSlip.sharePrice;
+      profit = shares - stakeInput; // Since payout is 1 coin per share
+      
+      document.getElementById('slipLiability').textContent = `🪙 ${liability.toFixed(2)}`;
+      document.getElementById('slipProfit').textContent = `🪙 ${profit.toFixed(2)}`;
+    }
+
+    async function executeTrade() {
+      const stake = parseFloat(document.getElementById('slipStake').value);
+      if (!stake || stake <= 0) {
+        alert("Please enter a valid stake.");
+        return;
+      }
+      
+      if (stake > currentUser.balance) {
+        alert("Insufficient balance. Contact your Agent for a top-up.");
+        return;
+      }
+
+      const btn = document.getElementById('placeBetBtn');
+      btn.textContent = 'Processing...';
+      btn.disabled = true;
+
+      // Simulate network delay for DB insert (we will actually wire this to Supabase next)
+      setTimeout(() => {
+        alert(`Successfully placed ${currentSlip.type} order on ${currentSlip.selection} for 🪙${stake}. (DB wiring pending)`);
+        closeBetSlip();
+        btn.textContent = 'Place Order';
+        btn.disabled = false;
+      }, 800);
+    }
+  </script>
+</body>
+</html>

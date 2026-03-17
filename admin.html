@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Control Center | Bhandai Exchange</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      background: #0f172a;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      margin: 0;
+    }
+
+    /* Sidebar */
+    .admin-sidebar {
+      width: 280px;
+      background: #1e293b;
+      border-right: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 24px;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: white;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 0;
+      overflow-y: auto;
+    }
+
+    .nav-item {
+      padding: 12px 24px;
+      color: #94a3b8;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .nav-item:hover {
+      background: rgba(255,255,255,0.05);
+      color: white;
+    }
+
+    .nav-item.active {
+      background: rgba(59, 130, 246, 0.1);
+      color: #3b82f6;
+      border-left: 3px solid #3b82f6;
+    }
+
+    /* Main Content */
+    .admin-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .topbar {
+      height: 70px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 32px;
+    }
+
+    .content-area {
+      padding: 32px;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Quick Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .stat-title {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      color: white;
+      font-size: 1.8rem;
+      font-weight: 700;
+      font-family: monospace;
+    }
+
+    .stat-value.up { color: #10b981; }
+    .stat-value.down { color: #ef4444; }
+
+    /* Tables */
+    .table-container {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .table-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      background: #0f172a;
+      padding: 12px 24px;
+      color: #94a3b8;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 16px 24px;
+      border-bottom: 1px solid #334155;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+    }
+
+    tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    /* Action Buttons */
+    .action-btn {
+      background: #334155;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    
+    .action-btn:hover { background: #475569; }
+    .action-btn.deposit { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .action-btn.withdraw { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+    .form-group label {
+      color: #94a3b8; font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 8px;
+    }
+    .form-group input {
+      width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: white;
+      box-sizing: border-box;
+    }
+    
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="admin-sidebar">
+    <div class="sidebar-header">
+      <span style="font-size: 1.5rem;">⚙️</span>
+      Master Admin
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" onclick="switchTab('dashboard')" id="nav-dashboard">📊 Dashboard Overview</div>
+      <div class="nav-item" onclick="switchTab('users')" id="nav-users">👥 User Management</div>
+      <div class="nav-item" onclick="switchTab('ledger')" id="nav-ledger">💰 Ledger Board</div>
+      <div class="nav-item" onclick="switchTab('risk')" id="nav-risk">🛡️ Risk Management</div>
+      <div class="nav-item" onclick="switchTab('markets')" id="nav-markets">🏏 Match Control</div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="admin-main">
+    <header class="topbar">
+      <div style="color: #94a3b8; font-weight: 500;">Welcome back, <span id="adminIdDisplay" style="color: white; font-weight: 700;">--</span></div>
+      <button class="logout-btn" style="padding: 8px 24px; border-radius: 6px; background: #334155; color: white; border: none; font-weight: 600; cursor: pointer;">Log Out</button>
+    </header>
+
+    <div class="content-area">
+      
+      <!-- TAB: DASHBOARD -->
+      <div id="tab-dashboard" class="tab-content active">
+        <h2 style="color: white; margin-top: 0; margin-bottom: 24px;">Platform Overview</h2>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-title">Platform Total P&L</div>
+            <div class="stat-value up">+ 🪙 <span id="dashPnl">0</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Total Active Exposure</div>
+            <div class="stat-value down">- 🪙 <span id="dashExposure">0</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Coins in Circulation</div>
+            <div class="stat-value">🪙 <span id="dashCoins">0</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Active Users</div>
+            <div class="stat-value" style="color: #3b82f6;"><span id="dashUsersCount">0</span></div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <div class="table-header">
+            <h3 style="margin: 0; color: white; font-weight: 600;">Top Agent Performance</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Agent ID</th>
+                <th>Name</th>
+                <th>Total Clients</th>
+                <th>Agent P&L</th>
+              </tr>
+            </thead>
+            <tbody id="topAgentsTable">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: USER MANAGEMENT -->
+      <div id="tab-users" class="tab-content">
+        <div class="table-container">
+          <div class="table-header">
+            <h3 style="margin: 0; color: white; font-weight: 600;">User Management</h3>
+            <div style="display: flex; gap: 12px;">
+              <button class="action-btn" style="background:#3b82f6;border-color:#3b82f6;" onclick="openCreateModal('AGENT')">+ New Agent</button>
+              <button class="action-btn" style="background:#10b981;border-color:#10b981;color:white;" onclick="openCreateModal('CLIENT')">+ New Client</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Phone</th>
+                <th>Match / Fancy Comm.</th>
+                <th>Credit Limit</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersManagementTableBody">
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: LEDGER BOARD -->
+      <div id="tab-ledger" class="tab-content">
+        <h2 style="color: white; margin-top: 0; margin-bottom: 24px;">Ledger Board (Banking)</h2>
+        <div class="table-container" style="background: #1e293b;">
+          <div class="table-header">
+             <h3 style="margin: 0; color: white; font-weight: 600;">Agent Balances & Settlement</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Agent / Client</th>
+                <th>Available Balance</th>
+                <th>Credit Limit</th>
+                <th>Unsettled P&L</th>
+                <th style="text-align: right;">Cashier Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerTableBody">
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: RISK MANAGEMENT -->
+      <div id="tab-risk" class="tab-content">
+        <h2 style="color: white; margin-top: 0; margin-bottom: 24px;">Risk Management</h2>
+        
+        <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="stat-card" style="border-left: 4px solid #ef4444;">
+            <div class="stat-title">Worst Case Scenario (Total)</div>
+            <div class="stat-value down">- 🪙 <span id="riskWorstCase">--</span></div>
+          </div>
+          <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+            <div class="stat-title">Total Bets Placed</div>
+            <div class="stat-value" style="color: #f59e0b;">0</div>
+          </div>
+          <div class="stat-card" style="border-left: 4px solid #10b981;">
+            <div class="stat-title">Projected Commission</div>
+            <div class="stat-value up">+ 🪙 0.00</div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <div class="table-header">
+             <h3 style="margin: 0; color: white; font-weight: 600;">Match-by-Match Exposure</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Match</th>
+                <th>Total Volume (🪙)</th>
+                <th>Outcome A Liability</th>
+                <th>Outcome B Liability</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="riskTableBody">
+              <tr>
+                <td colspan="5" style="text-align:center; color: #94a3b8; padding: 32px;">No active matches with exposure.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- TAB: MATCH CONTROL -->
+      <div id="tab-markets" class="tab-content">
+        <h2 style="color: white; margin-top: 0; margin-bottom: 24px;">Match Control</h2>
+        <p style="color: #94a3b8;">This section will allow you to pause markets, manually settle bets, and control the live odds ingestor.</p>
+        <div class="table-container">
+           <div class="table-header">
+              <h3 style="margin: 0; color: white;">Active Events</h3>
+           </div>
+           <table>
+              <tr><td style="text-align:center; color: #94a3b8;">No events active. Upcoming in Sprint 3.</td></tr>
+           </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Create User Modal -->
+  <div class="modal-overlay" id="createUserModal" style="display:none;">
+    <div class="modal-content" style="background: #1e293b; border: 1px solid #334155; width: 450px;">
+      <div class="modal-header" style="border-bottom: 1px solid #334155;">
+        <h3 id="modalTitle" style="color: white; margin: 0;">Create User</h3>
+        <button class="close-btn" style="color: #94a3b8;" onclick="closeModal()">×</button>
+      </div>
+      
+      <div id="createFormSection" style="padding: 24px; max-height: 70vh; overflow-y: auto;">
+        <form id="createUserForm">
+          <input type="hidden" id="newUserRole">
+          
+          <div class="form-group" style="margin-bottom: 16px;">
+             <label>Full Name</label>
+             <input type="text" id="newUserName" required placeholder="e.g. John Doe">
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 16px;">
+             <label>Phone Number (10 digits)</label>
+             <!-- HTML5 validation for 10 digit phone number -->
+             <input type="tel" id="newUserPhone" pattern="[0-9]{10}" maxlength="10" required title="Please enter exactly 10 digits" placeholder="9876543210">
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 16px;">
+             <label>Starting Credit Limit / Balance (🪙)</label>
+             <input type="number" id="newUserLimit" style="font-family: monospace;" value="10000" min="0" required>
+          </div>
+          
+          <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+            <div class="form-group" style="flex: 1;">
+               <label>Match Comm. (%)</label>
+               <!-- Max 3% for match commission -->
+               <input type="number" id="newUserMatchComm" min="0" max="3" step="0.1" value="0.0">
+            </div>
+            <div class="form-group" style="flex: 1;">
+               <label>Fancy Comm. (%)</label>
+               <!-- Max 4% for fancy commission -->
+               <input type="number" id="newUserFancyComm" min="0" max="4" step="0.1" value="0.0">
+            </div>
+          </div>
+
+          <button type="submit" id="createUserSubmit" style="width: 100%; padding: 14px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 1rem;">Generate Credentials</button>
+          <div id="createError" style="color: #ef4444; margin-top: 12px; text-align: center; font-size: 0.9rem;"></div>
+        </form>
+      </div>
+
+      <!-- Success Section -->
+      <div id="successSection" style="display:none; padding: 32px; text-align: center;">
+        <div style="color: #10b981; font-size: 4rem; margin-bottom: 16px; line-height: 1;">✓</div>
+        <h4 style="color: white; font-size: 1.25rem; margin-bottom: 8px;">User Successfully Created</h4>
+        <p style="font-size: 0.9rem; color: #94a3b8; margin-bottom: 24px;">Share these credentials securely. They cannot be recovered.</p>
+        
+        <div style="background: #0f172a; padding: 24px; border-radius: 8px; border: 1px dashed #334155; font-family: monospace; font-size: 1.1rem; color: white;">
+          <div style="margin-bottom: 12px;"><span style="color: #94a3b8;">Login ID:</span> <span id="generatedLoginId" style="font-weight: bold; color: #3b82f6;">--</span></div>
+          <div><span style="color: #94a3b8;">Password:</span> <span id="generatedPassword" style="font-weight: bold; color: #10b981;">--</span></div>
+        </div>
+
+        <button style="margin-top: 24px; width: 100%; padding: 14px; background: #334155; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;" onclick="closeModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    let currentUser = null;
+    let usersData = [];
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const authData = await AuthSystem.requireRole('ADMIN');
+      if (!authData) return;
+      currentUser = authData.profile;
+      
+      document.getElementById('adminIdDisplay').textContent = currentUser.login_id;
+      
+      await loadData();
+    });
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById('nav-' + tabId).classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    }
+
+    async function loadData() {
+      const { data, error } = await supabase
+        .from('betting_users')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error('Error fetching data:', error);
+        return;
+      }
+
+      usersData = data;
+      const downline = data.filter(u => u.id !== currentUser.id); // exclude self
+      
+      renderDashboard(downline);
+      renderUsersManagement(downline);
+      renderLedger(downline);
+    }
+
+    function renderDashboard(downline) {
+       document.getElementById('dashUsersCount').textContent = downline.filter(u => u.role !== 'ADMIN').length;
+       const totalCoins = downline.reduce((sum, u) => sum + parseFloat(u.balance || 0), 0);
+       document.getElementById('dashCoins').textContent = totalCoins.toLocaleString();
+       document.getElementById('dashPnl').textContent = "0"; // To be updated when bets are implemented
+       document.getElementById('dashExposure').textContent = "0";
+
+       const agents = downline.filter(u => u.role === 'AGENT');
+       const tbody = document.getElementById('topAgentsTable');
+       tbody.innerHTML = '';
+       if (agents.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">No agents found</td></tr>';
+       } else {
+          agents.forEach(agent => {
+             const clientCount = downline.filter(u => u.parent_id === agent.id).length;
+             tbody.innerHTML += `
+              <tr>
+                <td style="font-family:monospace; color:white;">${agent.login_id}</td>
+                <td>${agent.name || '-'}</td>
+                <td>${clientCount}</td>
+                <td style="color:#10b981;">+🪙0.00</td>
+              </tr>
+             `;
+          });
+       }
+    }
+
+    function renderUsersManagement(downline) {
+      const tbody = document.getElementById('usersManagementTableBody');
+      tbody.innerHTML = '';
+      
+      downline.forEach(user => {
+        const badgeColor = user.role === 'AGENT' ? '#8b5cf6' : user.role === 'ADMIN' ? '#ef4444' : '#10b981';
+        const statusBadge = user.status === 'ACTIVE' ? '<span style="color:#10b981;">● Active</span>' : '<span style="color:#ef4444;">● Suspended</span>';
+        // Handle commission fields if they exist, otherwise 0
+        const mComm = user.match_commission !== undefined ? user.match_commission : 0;
+        const fComm = user.fancy_commission !== undefined ? user.fancy_commission : 0;
+                           
+        tbody.innerHTML += `
+          <tr>
+            <td style="font-family:monospace;font-weight:bold;color:white;">${user.login_id}
+              <div style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">${user.name || ''}</div>
+            </td>
+            <td>
+              <span style="background:${badgeColor}20;color:${badgeColor};padding:4px 8px;border-radius:4px;font-size:0.75rem;font-weight:700;">${user.role}</span>
+            </td>
+            <td>${statusBadge}</td>
+            <td style="color:#94a3b8;">${user.phone || '-'}</td>
+            <td style="color:#e2e8f0;">${mComm}% / ${fComm}%</td>
+            <td style="font-family:monospace;color:#94a3b8;">🪙 ${parseFloat(user.credit_limit || 0).toLocaleString()}</td>
+            <td style="text-align:right;">
+               <button class="action-btn" onclick="openEditModal('${user.id}')">Edit</button>
+               <button class="action-btn" style="background:rgba(239,68,68,0.2);color:#ef4444;" onclick="suspendUser('${user.id}')">Suspend</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function renderLedger(downline) {
+      const tbody = document.getElementById('ledgerTableBody');
+      tbody.innerHTML = '';
+      
+      downline.forEach(user => {
+        tbody.innerHTML += `
+          <tr>
+            <td>
+              <strong style="color:white;font-family:monospace;">${user.login_id}</strong>
+              <span style="font-size:0.8rem; color:#94a3b8; display:block;">${user.role}</span>
+            </td>
+            <td style="font-family:monospace;color:white;font-weight:600;">🪙 ${parseFloat(user.balance || 0).toLocaleString()}</td>
+            <td style="font-family:monospace;color:#94a3b8;">🪙 ${parseFloat(user.credit_limit || 0).toLocaleString()}</td>
+            <td style="font-family:monospace;color:#f59e0b;">🪙 0.00</td>
+            <td style="text-align:right;">
+               <button class="action-btn deposit" onclick="promptDeposit('${user.id}')">Deposit</button>
+               <button class="action-btn withdraw" onclick="promptWithdraw('${user.id}')">Withdraw</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    /* Actions */
+    function promptDeposit(userId) {
+       const amount = prompt("Enter amount to DEPOSIT into this user's account:");
+       if(amount && !isNaN(amount)) {
+          alert("Deposit functionality will be wired to actual DB soon! Amount: " + amount);
+       }
+    }
+    
+    function promptWithdraw(userId) {
+       const amount = prompt("Enter amount to WITHDRAW from this user's account:");
+       if(amount && !isNaN(amount)) {
+          alert("Withdraw functionality will be wired to actual DB soon! Amount: " + amount);
+       }
+    }
+
+    /* Modal & Creation Logic */
+    function openCreateModal(role) {
+      document.getElementById('createUserModal').style.display = 'flex';
+      document.getElementById('createFormSection').style.display = 'block';
+      document.getElementById('successSection').style.display = 'none';
+      document.getElementById('modalTitle').textContent = `New ${role} Account`;
+      document.getElementById('newUserRole').value = role;
+      document.getElementById('createUserForm').reset();
+      document.getElementById('createError').textContent = '';
+    }
+
+    function closeModal() {
+      document.getElementById('createUserModal').style.display = 'none';
+      loadData();
+    }
+
+    document.getElementById('createUserForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('createUserSubmit');
+      const errorMsg = document.getElementById('createError');
+      
+      btn.textContent = 'Processing...';
+      btn.disabled = true;
+      errorMsg.textContent = '';
+      
+      try {
+        const role = document.getElementById('newUserRole').value;
+        const name = document.getElementById('newUserName').value.trim();
+        const phone = document.getElementById('newUserPhone').value.trim();
+        const startBalance = parseFloat(document.getElementById('newUserLimit').value) || 0;
+        const matchComm = parseFloat(document.getElementById('newUserMatchComm').value) || 0;
+        const fancyComm = parseFloat(document.getElementById('newUserFancyComm').value) || 0;
+        
+        const loginId = await AuthSystem.generateUniqueId(role);
+        const password = AuthSystem.generatePassword();
+        const email = AuthSystem.toEmail(loginId);
+        
+        // 1. Verify Admin has enough balance
+        const { data: adminData, error: adminErr } = await supabase.from('betting_users').select('balance').eq('id', currentUser.id).single();
+        if (adminErr) throw new Error("Could not verify Admin balance.");
+        if (parseFloat(adminData.balance) < startBalance) {
+            throw new Error(`Insufficient funds. Your balance is 🪙${adminData.balance}, but you are trying to issue 🪙${startBalance}.`);
+        }
+
+        // 2. Create Auth User
+        const { data: authData, error: signupErr } = await supabase.auth.signUp({
+          email: email,
+          password: password,
+        });
+        
+        if (signupErr) throw new Error(signupErr.message);
+        
+        // 3. Insert Custom User Record
+        const { error: insertErr } = await supabase
+          .from('betting_users')
+          .insert({
+            id: authData.user.id,
+            login_id: loginId,
+            role: role,
+            name: name,
+            phone: phone,
+            parent_id: currentUser.id,
+            balance: startBalance,
+            credit_limit: startBalance,
+            match_commission: matchComm,
+            fancy_commission: fancyComm
+          });
+          
+        if (insertErr) throw new Error(insertErr.message); 
+
+        // 4. Deduct Balance from Admin
+        if (startBalance > 0) {
+            const newAdminBalance = parseFloat(adminData.balance) - startBalance;
+            await supabase.from('betting_users').update({ balance: newAdminBalance }).eq('id', currentUser.id);
+            
+            // 5. Log Transaction
+            await supabase.from('credit_transactions').insert({
+                sender_id: currentUser.id,
+                receiver_id: authData.user.id,
+                amount: startBalance,
+                transaction_type: 'DEPOSIT'
+            });
+        }
+
+        // Show Success
+        document.getElementById('createFormSection').style.display = 'none';
+        document.getElementById('successSection').style.display = 'block';
+        document.getElementById('generatedLoginId').textContent = loginId;
+        document.getElementById('generatedPassword').textContent = password;
+        
+      } catch(err) {
+        errorMsg.textContent = err.message;
+      } finally {
+        btn.textContent = 'Generate Credentials';
+        btn.disabled = false;
+      }
+    });
+
+    document.querySelector('.logout-btn').addEventListener('click', () => {
+      AuthSystem.logout();
+    });
+  </script>
+</body>
+</html>
