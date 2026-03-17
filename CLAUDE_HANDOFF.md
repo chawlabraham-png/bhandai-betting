@@ -60,6 +60,7 @@ If a user Backs "India" at 0.60 price for 1,000 coins:
 3.  **Square Off (Cash Out):** The *most important feature*. Allow users to "Sell" their position back into the order book at current market prices to lock in profit or cut their losses before the match ends.
 
 ## 5. How to start
-1. Start a local server (e.g., `npx http-server -p 8080`).
-2. Log in using a Client credential (or use the Admin dashboard to create a new Agent, login as the Agent, and create a test Client for yourself).
-3. Begin building `exchange.html` and its required CSS/JS modules.
+1. Clone this repository: `git clone https://github.com/chawlabraham-png/bhandai-betting.git`
+2. Start a local server (e.g., `npx http-server -p 8080`).
+3. Log in using a Client credential (or use the Admin dashboard to create a new Agent, login as the Agent, and create a test Client for yourself).
+4. Begin building `exchange.html` and its required CSS/JS modules.
