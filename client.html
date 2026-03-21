@@ -358,6 +358,12 @@
     .susp-body-text { font-size: 1.1rem; font-weight: 900; color: #f59e0b; letter-spacing: 0.2em; }
     .susp-body-hint { font-size: 0.72rem; color: #64748b; margin-top: 6px; }
     .suspended-fancy-msg { padding: 12px 14px; text-align: center; font-size: 0.85rem; font-weight: 700; color: #f59e0b; letter-spacing: 0.1em; }
+    /* Event book bar — shows user's net position under LAGAI/KHAI buttons */
+    .event-book-bar { display: flex; align-items: center; background: rgba(30,41,59,0.8); border-top: 1px solid #1e293b; padding: 6px 14px 10px; gap: 8px; }
+    .ebook-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .ebook-label { font-size: 0.6rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; text-align: center; }
+    .ebook-val { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; font-weight: 800; }
+    .ebook-divider { width: 1px; height: 28px; background: #334155; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -668,6 +674,7 @@ function startRealtime() {
       if (idx >= 0) allOutcomes[idx] = { ...allOutcomes[idx], ...updated };
       else allOutcomes.push(updated);
       renderMarketsTab();
+      _refreshLivePnl(); // update portfolio P&L immediately
       if (bsState.outcomeId === updated.id) {
         // Auto-update live rate in slip for non-LK (back/lay) bets
         if (!bsState.isLK && updated.back_price != null) {
@@ -701,6 +708,7 @@ function startRealtime() {
       }
 
       renderMarketsTab();
+      _refreshLivePnl(); // rates changed — update all open bet P&Ls immediately
 
       // Live bet slip updates when this event changes
       if (bsState.eventId === updated.id) {
@@ -969,7 +977,18 @@ function renderMatchGroup(ev) {
             <div class="lk-rate">${khai.toFixed(2)}</div>
             <div class="lk-team">${sanitize(otherTeam)}</div>
           </div>
-        </div>` : `<div style="padding:10px 14px 14px;text-align:center;color:#475569;font-size:0.78rem;">⚙️ Rates loading</div>`}
+        </div>
+        ${(() => {
+          const book = calcEventBook(ev.id);
+          if (!book) return '';
+          const fwC = book.favWins >= 0 ? '#10b981' : '#ef4444';
+          const flC = book.favLoses >= 0 ? '#10b981' : '#ef4444';
+          return `<div class="event-book-bar">
+            <div class="ebook-item"><span class="ebook-label">If ${sanitize(favTeam)} wins</span><span class="ebook-val" style="color:${fwC};">${book.favWins>=0?'+':''}🪙${fmt(Math.abs(book.favWins),0)}</span></div>
+            <div class="ebook-divider"></div>
+            <div class="ebook-item"><span class="ebook-label">If ${sanitize(otherTeam)} wins</span><span class="ebook-val" style="color:${flC};">${book.favLoses>=0?'+':''}🪙${fmt(Math.abs(book.favLoses),0)}</span></div>
+          </div>`;
+        })()}` : `<div style="padding:10px 14px 14px;text-align:center;color:#475569;font-size:0.78rem;">⚙️ Rates loading</div>`}
       </div>`;
     }
   }
@@ -1479,14 +1498,11 @@ function renderPortfolioTab() {
   const totStaked = openOrds.reduce((s,o) => s + parseFloat(o.total_cost||0), 0);
   const totPotWin = openOrds.reduce((s,o) => s + parseFloat(o.shares||0), 0);
 
-  // Live unrealised P&L for open match bets (based on current odds vs entry odds)
+  // Live unrealised P&L using correct rate source per bet type
   let netUnrealisedPnl = 0;
   openOrds.forEach(o => {
     if (o.events?.market_type !== 'FANCY') {
-      const bp = parseFloat(o.price_per_share||1);
-      const curOc = allOutcomes.find(oc => oc.id === o.outcome_id);
-      const curBP = parseFloat(curOc?.back_price || bp);
-      netUnrealisedPnl += (parseFloat(o.total_cost||0) * (bp / curBP)) - parseFloat(o.total_cost||0);
+      netUnrealisedPnl += _calcOrderPnl(o).pnl;
     }
   });
 
@@ -1517,12 +1533,9 @@ function renderPortfolioTab() {
     const key = o.event_id || o.events?.title || 'unknown';
     if (!groups[key]) groups[key] = { title: o.events?.title || 'Unknown Market', orders: [], pnl: 0 };
     groups[key].orders.push(o);
-    // unrealised P&L for open match bets
+    // unrealised P&L for open match bets using correct rate source
     if (o.status === 'OPEN' && o.events?.market_type !== 'FANCY') {
-      const bp   = parseFloat(o.price_per_share||1);
-      const curOc = allOutcomes.find(oc => oc.id === o.outcome_id);
-      const curBP = parseFloat(curOc?.back_price || bp);
-      groups[key].pnl += (parseFloat(o.total_cost||0) * (bp/curBP)) - parseFloat(o.total_cost||0);
+      groups[key].pnl += _calcOrderPnl(o).pnl;
     }
   });
 
@@ -1551,9 +1564,8 @@ function renderPosCard(ord) {
   const potPay  = parseFloat(ord.shares || 0);
   const bp      = parseFloat(ord.price_per_share || 1);
 
-  // Current P&L for match markets
-  const curOc   = allOutcomes.find(o => o.id === ord.outcome_id);
-  const curBP   = parseFloat(curOc?.back_price || bp);
+  // Current P&L for match markets — uses correct rate source per bet type
+  const curBP   = (isOpen && !isFancy) ? _getLiveRate(ord) : bp;
   const curVal  = (isOpen && !isFancy) ? stake * (bp / curBP) : null;
   const uPnl    = curVal != null ? curVal - stake : null;
   const pnlCls  = uPnl == null ? 'flat' : uPnl > 0.01 ? 'up' : uPnl < -0.01 ? 'down' : 'flat';
@@ -1587,24 +1599,106 @@ function renderPosCard(ord) {
     ${isOpen?`
     <div class="pos-odds-row">
       <div class="pos-odds-item"><div class="pos-odds-lbl">Entry Odds</div><div class="pos-odds-val">${bp.toFixed(2)}×</div></div>
-      ${!isFancy?`<div class="pos-odds-item"><div class="pos-odds-lbl">Current</div><div class="pos-odds-val">${curBP.toFixed(2)}×</div></div>`:''}
+      ${!isFancy?`<div class="pos-odds-item"><div class="pos-odds-lbl">Current</div><div class="pos-odds-val pos-cur-rate">${curBP.toFixed(2)}×</div></div>`:''}
       <div class="pos-odds-item"><div class="pos-odds-lbl">Pot. Payout</div><div class="pos-odds-val" style="color:#10b981;">🪙${fmt(potPay,2)}</div></div>
     </div>`:''}
     ${isOpen&&!isFancy?`
     <div class="pos-exit-section" id="exitSec_${ord.id}">
       <div class="exit-slider-wrap">
         <div class="exit-slider-label"><span>Exit Fraction</span><span id="exitPct_${ord.id}">50%</span></div>
-        <input type="range" class="exit-slider" id="exitSlider_${ord.id}" min="10" max="100" step="10" value="50"
-          oninput="updateExitPreview('${ord.id}',${stake},${bp},${curBP})">
+        <input type="range" class="exit-slider" id="exitSlider_${ord.id}" min="10" max="100" step="10" value="100"
+          oninput="updateExitPreview('${ord.id}')">
       </div>
       <div class="exit-preview" id="exitPreview_${ord.id}">
         <div class="exit-prev-item"><div class="ep-lbl">Exiting</div><div class="ep-val" id="epExit_${ord.id}">—</div></div>
         <div class="exit-prev-item"><div class="ep-lbl">Exit Value</div><div class="ep-val green" id="epVal_${ord.id}">—</div></div>
         <div class="exit-prev-item"><div class="ep-lbl">P&amp;L</div><div class="ep-val" id="epPnl_${ord.id}">—</div></div>
       </div>
-      <button class="exit-btn" onclick="exitPosition('${ord.id}',${stake},${bp})">Exit Position →</button>
+      <button class="exit-btn" onclick="exitPosition('${ord.id}')">Exit Position →</button>
     </div>`:''}
   </div>`;
+}
+
+// ── LIVE RATE HELPER ─────────────────────────────────────────────
+// Returns the current market rate for an order, using the correct
+// source: lagai_rate from allEvents for LK bets, back_price from
+// allOutcomes for back/lay bets.
+function _getLiveRate(ord) {
+  const bp = parseFloat(ord.price_per_share || 1);
+  const isLK = ord.bet_side === 'LAGAI' || ord.bet_side === 'KHAI';
+  if (isLK) {
+    const evData = allEvents.find(e => e.id === ord.event_id);
+    const lagaiRate = parseFloat(evData?.lagai_rate || bp);
+    return ord.bet_side === 'KHAI'
+      ? parseFloat((lagaiRate + 0.05).toFixed(2))
+      : lagaiRate;
+  } else {
+    const curOc = allOutcomes.find(o => o.id === ord.outcome_id);
+    return parseFloat(curOc?.back_price || bp);
+  }
+}
+
+// P&L for an open order at current market rate
+// exitVal = stake × (entryRate / currentRate)  [stock-equivalent: buy at X, current Y]
+// pnl = exitVal − stake  (positive = profit, negative = loss)
+function _calcOrderPnl(ord) {
+  const stake = parseFloat(ord.total_cost || 0);
+  const entryRate = parseFloat(ord.price_per_share || 1);
+  const curRate = _getLiveRate(ord);
+  const exitVal = stake * (entryRate / curRate);
+  return { stake, entryRate, curRate, exitVal, pnl: exitVal - stake };
+}
+
+// Net P&L for two outcome scenarios on a match event
+// Returns { teamAWins, teamALoses } where each is the user's net P&L
+function calcEventBook(eventId) {
+  const eventOrds = myOrders.filter(o => o.event_id === eventId && o.status === 'OPEN');
+  if (!eventOrds.length) return null;
+  let favWins = 0, favLoses = 0;
+  eventOrds.forEach(o => {
+    const profit = parseFloat(o.shares || 0) - parseFloat(o.total_cost || 0);
+    const stake  = parseFloat(o.total_cost || 0);
+    if (o.bet_side === 'LAGAI') {
+      favWins  += profit;   // LAGAI: wins if fav team wins
+      favLoses -= stake;    // LAGAI: loses if fav team loses
+    } else if (o.bet_side === 'KHAI') {
+      favWins  -= stake;    // KHAI: loses if fav team wins
+      favLoses += profit;   // KHAI: wins if fav team loses
+    }
+  });
+  return { favWins, favLoses, count: eventOrds.length };
+}
+
+// Lightweight P&L refresh — updates existing DOM without full re-render
+function _refreshLivePnl() {
+  // Summary bar
+  const openOrds = myOrders.filter(o => o.status === 'OPEN');
+  let netPnl = 0;
+  openOrds.forEach(o => {
+    if (o.events?.market_type !== 'FANCY') {
+      const { pnl } = _calcOrderPnl(o);
+      netPnl += pnl;
+    }
+  });
+  const pnlEl = document.getElementById('portNetPnl');
+  if (pnlEl) {
+    if (openOrds.some(o => o.events?.market_type !== 'FANCY')) {
+      pnlEl.textContent = `${netPnl >= 0 ? '+' : ''}🪙${fmt(Math.abs(netPnl), 0)}`;
+      pnlEl.style.color = netPnl > 0.5 ? '#10b981' : netPnl < -0.5 ? '#ef4444' : '#94a3b8';
+    }
+  }
+  // Update each open pos-card P&L chip without re-rendering
+  openOrds.filter(o => o.events?.market_type !== 'FANCY').forEach(o => {
+    const { pnl } = _calcOrderPnl(o);
+    const pnlSpan = document.querySelector(`#posCard_${o.id} .pos-pnl`);
+    if (pnlSpan) {
+      pnlSpan.textContent = `${pnl >= 0 ? '+' : ''}🪙${fmt(Math.abs(pnl), 2)}`;
+      pnlSpan.className = 'pos-pnl ' + (pnl > 0.01 ? 'up' : pnl < -0.01 ? 'down' : 'flat');
+    }
+    const curRateEl = document.querySelector(`#posCard_${o.id} .pos-cur-rate`);
+    if (curRateEl) curRateEl.textContent = `${_getLiveRate(o).toFixed(2)}×`;
+    updateExitPreview(o.id);
+  });
 }
 
 function toggleExpand(ordId, canExpand) {
@@ -1618,39 +1712,40 @@ function toggleExpand(ordId, canExpand) {
   }
 }
 
-function updateExitPreview(ordId, stakeArg, bpArg, curBPArg) {
+// Always looks up current rate dynamically — no stale args
+function updateExitPreview(ordId) {
   const slider = document.getElementById('exitSlider_' + ordId);
   if (!slider) return;
-  const pct    = parseInt(slider.value) / 100;
-  const ord    = myOrders.find(o => o.id === ordId);
-  const stake  = stakeArg  ?? parseFloat(ord?.total_cost||0);
-  const bp     = bpArg     ?? parseFloat(ord?.price_per_share||1);
-  const curOc  = allOutcomes.find(o => o.id === ord?.outcome_id);
-  const curBP  = curBPArg  ?? parseFloat(curOc?.back_price || bp);
-
+  const pct = parseInt(slider.value) / 100;
+  const ord = myOrders.find(o => o.id === ordId);
+  if (!ord) return;
+  const stake     = parseFloat(ord.total_cost || 0);
+  const entryRate = parseFloat(ord.price_per_share || 1);
+  const curRate   = _getLiveRate(ord);
   const exitStake = stake * pct;
-  const exitVal   = exitStake * (bp / curBP);
+  const exitVal   = exitStake * (entryRate / curRate);
   const pnl       = exitVal - exitStake;
 
-  document.getElementById('exitPct_'   + ordId).textContent = `${Math.round(pct*100)}%`;
-  document.getElementById('epExit_'    + ordId).textContent = `🪙${fmt(exitStake,0)}`;
-  document.getElementById('epVal_'     + ordId).textContent = `🪙${fmt(exitVal,2)}`;
+  document.getElementById('exitPct_'   + ordId).textContent = `${Math.round(pct * 100)}%`;
+  document.getElementById('epExit_'    + ordId).textContent = `🪙${fmt(exitStake, 0)}`;
+  document.getElementById('epVal_'     + ordId).textContent = `🪙${fmt(exitVal, 2)}`;
   const pnlEl = document.getElementById('epPnl_' + ordId);
-  pnlEl.textContent = `${pnl>=0?'+':''}🪙${fmt(Math.abs(pnl),2)}`;
-  pnlEl.className   = 'ep-val ' + (pnl>0.01?'green':pnl<-0.01?'red':'');
+  pnlEl.textContent = `${pnl >= 0 ? '+' : ''}🪙${fmt(Math.abs(pnl), 2)}`;
+  pnlEl.className   = 'ep-val ' + (pnl > 0.01 ? 'green' : pnl < -0.01 ? 'red' : '');
 }
 
-async function exitPosition(ordId, originalStake, originalBP) {
+async function exitPosition(ordId) {
   const ord    = myOrders.find(o => o.id === ordId);
   if (!ord) return;
   const slider = document.getElementById('exitSlider_' + ordId);
-  const pct    = parseInt(slider?.value || 50) / 100;
+  const pct    = parseInt(slider?.value || 100) / 100;
 
-  const curOc  = allOutcomes.find(o => o.id === ord.outcome_id);
-  const curBP  = parseFloat(curOc?.back_price || originalBP);
-  const exitStake = originalStake * pct;
-  const exitVal   = exitStake * (originalBP / curBP);
-  const pnl       = exitVal - exitStake;
+  const originalStake = parseFloat(ord.total_cost || 0);
+  const originalBP    = parseFloat(ord.price_per_share || 1);
+  const curBP         = _getLiveRate(ord);
+  const exitStake     = originalStake * pct;
+  const exitVal       = exitStake * (originalBP / curBP);
+  const pnl           = exitVal - exitStake;
 
   if (!confirm(
     `Exit ${Math.round(pct*100)}% of position?\n` +
