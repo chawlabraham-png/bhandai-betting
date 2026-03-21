@@ -284,6 +284,18 @@
           <div class="stat-change">🪙 <span id="dashLiveVol">0</span> open volume</div>
         </div>
       </div>
+      <div class="stats-grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+        <div class="stat-card">
+          <div class="stat-label">Open Exposure</div>
+          <div class="stat-value amber">🪙 <span id="dashOpenExposure">0</span></div>
+          <div class="stat-change">Max potential payout to clients</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Settled P&amp;L</div>
+          <div class="stat-value" id="dashSettledPnlVal">🪙 <span id="dashSettledPnl">0</span></div>
+          <div class="stat-change" id="dashSettledPnlNote">Bet outcomes net</div>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 360px;gap:16px;">
         <div class="card">
           <div class="card-header">
@@ -899,6 +911,29 @@ function renderDashboard() {
   document.getElementById('dashSuspendedClients').textContent = suspended.length;
   document.getElementById('dashLiveBets').textContent   = liveBets;
   document.getElementById('dashLiveVol').textContent    = fmt(liveVol,0);
+
+  // Open exposure = total potential payout (shares) from all open client orders
+  const openOrds = allOrders.filter(o => o.status === 'OPEN');
+  const openExposure = openOrds.reduce((s,o) => s + parseFloat(o.shares||0), 0);
+  document.getElementById('dashOpenExposure').textContent = fmt(openExposure,0);
+
+  // Settled P&L: stakes on settled orders minus what was paid out via SETTLEMENT transactions
+  const clientIdSet = new Set(myClients.map(c => c.id));
+  const clientPayouts = allTransactions
+    .filter(t => t.transaction_type === 'SETTLEMENT' && clientIdSet.has(t.receiver_id))
+    .reduce((s,t) => s + parseFloat(t.amount||0), 0);
+  const clientStaked = allOrders
+    .filter(o => o.status === 'SETTLED')
+    .reduce((s,o) => s + parseFloat(o.total_cost||0), 0);
+  const settledPnl = clientStaked - clientPayouts; // positive = house up
+  const pnlValEl  = document.getElementById('dashSettledPnlVal');
+  const pnlSpanEl = document.getElementById('dashSettledPnl');
+  const pnlNoteEl = document.getElementById('dashSettledPnlNote');
+  if (pnlValEl && pnlSpanEl) {
+    pnlValEl.style.color = settledPnl >= 0 ? '#10b981' : '#ef4444';
+    pnlSpanEl.textContent = `${settledPnl >= 0 ? '+' : ''}${fmt(settledPnl,0)}`;
+  }
+  if (pnlNoteEl) pnlNoteEl.textContent = settledPnl >= 0 ? 'House up (clients lost net)' : 'House down (clients won net)';
 
   const tbody = document.getElementById('dashClientsTable');
   if (myClients.length === 0) {

@@ -166,8 +166,7 @@
     .pos-settle-tag { font-size: 0.62rem; padding: 1px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; }
     .pos-settle-tag.win  { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: #10b981; }
     .pos-settle-tag.lose { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #f87171; }
-    .pos-exit-section { padding: 12px 14px; border-top: 1px solid #334155; display: none; }
-    .pos-card.expanded .pos-exit-section { display: block; }
+    .pos-exit-section { padding: 12px 14px; border-top: 1px solid #334155; }
     .exit-slider-wrap { margin-bottom: 10px; }
     .exit-slider-label { display: flex; justify-content: space-between; font-size: 0.72rem; color: #94a3b8; font-weight: 600; margin-bottom: 6px; }
     .exit-slider { width: 100%; -webkit-appearance: none; appearance: none; height: 6px; background: #334155; border-radius: 3px; outline: none; }
@@ -428,10 +427,11 @@
       </div>
       <button class="refresh-icon-btn" onclick="refreshData()">↻</button>
     </div>
-    <div id="portfolioSummary" style="display:none;background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px;margin-bottom:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
+    <div id="portfolioSummary" style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px;margin-bottom:14px;display:none;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;">
       <div><div style="font-size:0.62rem;color:#64748b;text-transform:uppercase;font-weight:700;">Open</div><div class="mono" style="font-size:1rem;font-weight:700;color:white;margin-top:2px;" id="portOpenCount">0</div></div>
       <div><div style="font-size:0.62rem;color:#64748b;text-transform:uppercase;font-weight:700;">Staked</div><div class="mono" style="font-size:1rem;font-weight:700;color:white;margin-top:2px;" id="portStaked">🪙 0</div></div>
       <div><div style="font-size:0.62rem;color:#64748b;text-transform:uppercase;font-weight:700;">Pot. Win</div><div class="mono" style="font-size:1rem;font-weight:700;color:#10b981;margin-top:2px;" id="portPotWin">🪙 0</div></div>
+      <div><div style="font-size:0.62rem;color:#64748b;text-transform:uppercase;font-weight:700;">Live P&amp;L</div><div class="mono" style="font-size:1rem;font-weight:700;margin-top:2px;" id="portNetPnl">—</div></div>
     </div>
     <div class="filter-row">
       <div class="filter-pill active" onclick="setPortfolioFilter('OPEN',this)">Open</div>
@@ -540,6 +540,13 @@
     </div>
     <div class="bs-comm-note" id="bsCommNote"></div>
     <div class="odds-stale-warn" id="bsStaleWarn">⚡ Odds have changed — please review before confirming</div>
+    <div id="bsSuspendedBanner" style="display:none;background:#451a03;border:1px solid #f59e0b;border-radius:8px;padding:10px 12px;margin-bottom:8px;flex-direction:row;align-items:center;gap:8px;">
+      <span style="font-size:1.1rem;flex-shrink:0;">⏸</span>
+      <div><div style="font-size:0.82rem;font-weight:700;color:#fbbf24;">Market Suspended</div><div style="font-size:0.7rem;color:#fde68a;margin-top:2px;">Betting paused. Slip will restore when market resumes.</div></div>
+    </div>
+    <div id="bsHedgeBanner" style="display:none;background:#0f2744;border:1px solid #3b82f6;border-radius:8px;padding:8px 12px;margin-bottom:8px;">
+      <div style="font-size:0.74rem;color:#93c5fd;line-height:1.4;"><span style="font-weight:700;">🔄 Position hedge:</span> <span id="bsHedgeText"></span></div>
+    </div>
     <div class="bs-error" id="bsError"></div>
     <div class="bs-warn" id="bsWarn" style="display:none;"></div>
     <button class="bs-confirm-btn" id="bsConfirmBtn" onclick="confirmBet()">
@@ -661,7 +668,15 @@ function startRealtime() {
       if (idx >= 0) allOutcomes[idx] = { ...allOutcomes[idx], ...updated };
       else allOutcomes.push(updated);
       renderMarketsTab();
-      if (bsState.outcomeId === updated.id) updateBetSlipPreview();
+      if (bsState.outcomeId === updated.id) {
+        // Auto-update live rate in slip for non-LK (back/lay) bets
+        if (!bsState.isLK && updated.back_price != null) {
+          bsState.backPrice = parseFloat(updated.back_price);
+          const oddsEl = document.getElementById('bsOddsVal');
+          if (oddsEl) oddsEl.textContent = bsState.backPrice.toFixed(2);
+        }
+        updateBetSlipPreview();
+      }
     })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events' }, payload => {
       const updated = payload.new;
@@ -687,15 +702,32 @@ function startRealtime() {
 
       renderMarketsTab();
 
-      // Update stale warn if this event's bet is open
-      if (bsState.isLK && bsState.eventId === updated.id && updated.lagai_rate != null) {
-        const newRate = bsState.side === 'KHAI'
-          ? parseFloat((parseFloat(updated.lagai_rate) + 0.05).toFixed(2))
-          : parseFloat(updated.lagai_rate);
-        const staleEl = document.getElementById('bsStaleWarn');
-        if (Math.abs(newRate - bsState.oddsAtOpen) >= 0.03) {
-          staleEl.style.display = 'block';
-          staleEl.textContent = `⚡ Rate moved ${bsState.oddsAtOpen.toFixed(2)} → ${newRate.toFixed(2)}. Review before confirming.`;
+      // Live bet slip updates when this event changes
+      if (bsState.eventId === updated.id) {
+        // Suspension / resume handling
+        if (updated.status === 'SUSPENDED') {
+          _showBetSlipSuspended();
+        } else if (updated.status === 'ACTIVE') {
+          _hideBetSlipSuspended();
+        }
+        // Auto-update rate for LK bets
+        if (bsState.isLK && updated.lagai_rate != null) {
+          const newRate = bsState.side === 'KHAI'
+            ? parseFloat((parseFloat(updated.lagai_rate) + 0.05).toFixed(2))
+            : parseFloat(updated.lagai_rate);
+          bsState.backPrice = newRate;
+          const oddsEl = document.getElementById('bsOddsVal');
+          if (oddsEl) oddsEl.textContent = newRate.toFixed(2);
+          const staleEl = document.getElementById('bsStaleWarn');
+          if (staleEl) {
+            if (Math.abs(newRate - bsState.oddsAtOpen) >= 0.03) {
+              staleEl.style.display = 'block';
+              staleEl.textContent = `⚡ Rate moved ${bsState.oddsAtOpen.toFixed(2)} → ${newRate.toFixed(2)}. Review before confirming.`;
+            } else {
+              staleEl.style.display = 'none';
+            }
+          }
+          updateBetSlipPreview();
         }
       }
     })
@@ -1009,7 +1041,6 @@ function openLKBetSlip(eventId, outcomeId, side, rate, favTeam, marketTitle) {
   bsState = { eventId, outcomeId, side, backPrice: r, isFancy: false, isLK: true, line: null, oddsAtOpen: r, favTeam };
 
   document.getElementById('bsMarket').textContent  = marketTitle || ev.title;
-  // For LAGAI: betting FOR the favourite. For KHAI: betting AGAINST (backing other team)
   const ocs = allOutcomes.filter(o => o.event_id === eventId);
   const otherTeam = ocs.find(o => o.id !== ocs[0]?.id)?.title || 'Other';
   document.getElementById('bsOutcome').textContent = side === 'LAGAI'
@@ -1022,6 +1053,22 @@ function openLKBetSlip(eventId, outcomeId, side, rate, favTeam, marketTitle) {
   document.getElementById('bsOddsVal').textContent   = r.toFixed(2);
   document.getElementById('bsFancyInfo').style.display = 'none';
   document.getElementById('bsStaleWarn').style.display = 'none';
+  _hideBetSlipSuspended();
+
+  // Show hedge banner if an opposing position exists on this event
+  const opposingSide = side === 'LAGAI' ? 'KHAI' : 'LAGAI';
+  const hedgeCap = myOrders
+    .filter(o => o.event_id === eventId && o.status === 'OPEN' && o.bet_side === opposingSide)
+    .reduce((sum, o) => sum + Math.max(0, parseFloat(o.shares||0) - parseFloat(o.total_cost||0)), 0);
+  const hedgeBanner = document.getElementById('bsHedgeBanner');
+  if (hedgeCap > 0.01) {
+    hedgeBanner.style.display = 'block';
+    document.getElementById('bsHedgeText').textContent =
+      `Up to 🪙${fmt(hedgeCap,0)} offset from your opposing ${opposingSide} position — only the remainder deducted from balance.`;
+  } else {
+    hedgeBanner.style.display = 'none';
+  }
+
   resetBetSlip();
   openBetSlipUI();
 }
@@ -1039,6 +1086,8 @@ function openBetSlip(eventId, outcomeId, side, backPrice, outcomeName, marketTit
   document.getElementById('bsOddsVal').textContent   = bp.toFixed(2);
   document.getElementById('bsFancyInfo').style.display = 'none';
   document.getElementById('bsStaleWarn').style.display = 'none';
+  document.getElementById('bsHedgeBanner').style.display = 'none';
+  _hideBetSlipSuspended();
   resetBetSlip();
   openBetSlipUI();
 }
@@ -1057,6 +1106,8 @@ function openFancyBetSlip(eventId, outcomeId, side, backPrice, line, marketTitle
   document.getElementById('bsFancyInfo').style.display = 'block';
   document.getElementById('bsLine').textContent = line;
   document.getElementById('bsStaleWarn').style.display = 'none';
+  document.getElementById('bsHedgeBanner').style.display = 'none';
+  _hideBetSlipSuspended();
   resetBetSlip();
   openBetSlipUI();
 }
@@ -1087,6 +1138,21 @@ function clearBsCountdown() {
   const prog = document.getElementById('bsBtnProgress');
   if (lbl)  lbl.textContent = 'Place Bet';
   if (prog) { prog.style.width = '100%'; prog.style.background = 'rgba(255,255,255,0.15)'; }
+}
+
+function _showBetSlipSuspended() {
+  const el = document.getElementById('bsSuspendedBanner');
+  if (el) el.style.display = 'flex';
+  const btn = document.getElementById('bsConfirmBtn');
+  if (btn) btn.disabled = true;
+  clearBsCountdown();
+}
+
+function _hideBetSlipSuspended() {
+  const el = document.getElementById('bsSuspendedBanner');
+  if (el) el.style.display = 'none';
+  const btn = document.getElementById('bsConfirmBtn');
+  if (btn && !isSubmitting) btn.disabled = false;
 }
 
 function _updateCountdownUI() {
@@ -1208,8 +1274,24 @@ async function confirmBet() {
 
   const { data: prof } = await db.from('betting_users').select('balance').eq('id', currentUser.id).single();
   const bal = parseFloat(prof?.balance || 0);
-  if (stake > bal) {
-    errEl.textContent = `Insufficient balance. You have 🪙 ${fmt(bal,0)}.`;
+
+  // Position netting: for LK bets, offset new stake against opposing position's profit
+  let hedgeAmount = 0, hedgeOrders = [];
+  if (bsState.isLK) {
+    const opposingSide = bsState.side === 'LAGAI' ? 'KHAI' : 'LAGAI';
+    hedgeOrders = myOrders
+      .filter(o => o.event_id === bsState.eventId && o.status === 'OPEN' && o.bet_side === opposingSide)
+      .sort((a, b) => parseFloat(b.shares||0) - parseFloat(a.shares||0));
+    const hedgeCap = hedgeOrders.reduce((sum, o) => sum + Math.max(0, parseFloat(o.shares||0) - parseFloat(o.total_cost||0)), 0);
+    hedgeAmount = Math.min(hedgeCap, stake);
+  }
+  const effectiveDeduction = stake - hedgeAmount;
+
+  if (effectiveDeduction > bal) {
+    const msg = hedgeAmount > 0
+      ? `Insufficient balance. Need 🪙${fmt(effectiveDeduction,0)} after hedging 🪙${fmt(hedgeAmount,0)}. Available: 🪙${fmt(bal,0)}.`
+      : `Insufficient balance. You have 🪙 ${fmt(bal,0)}.`;
+    errEl.textContent = msg;
     shakeBetSlip();
     return;
   }
@@ -1260,13 +1342,13 @@ async function confirmBet() {
 
   let balanceDeducted = false;
   try {
-    // Deduct balance
-    const { error: balErr } = await db.from('betting_users').update({ balance: bal - stake }).eq('id', currentUser.id);
+    // Deduct only effectiveDeduction from balance (full stake if no hedge, less if hedging)
+    const { error: balErr } = await db.from('betting_users').update({ balance: bal - effectiveDeduction }).eq('id', currentUser.id);
     if (balErr) throw new Error(balErr.message);
     balanceDeducted = true;
-    currentProfile.balance = String(bal - stake);
+    currentProfile.balance = String(bal - effectiveDeduction);
 
-    // Insert order
+    // Insert order (total_cost = full stake for P&L tracking)
     const ord = {
       event_id: bsState.eventId, outcome_id: bsState.outcomeId,
       user_id: currentUser.id, order_type: 'BUY',
@@ -1280,6 +1362,20 @@ async function confirmBet() {
 
     const { error: ordErr } = await db.from('orders').insert(ord);
     if (ordErr) throw new Error(ordErr.message);
+
+    // Reduce opposing position shares by hedge amount to keep accounting correct
+    if (hedgeAmount > 0.001) {
+      let remaining = hedgeAmount;
+      for (const opp of hedgeOrders) {
+        if (remaining < 0.001) break;
+        const oppProfit = parseFloat(opp.shares||0) - parseFloat(opp.total_cost||0);
+        const reduce = Math.min(remaining, Math.max(0, oppProfit));
+        if (reduce > 0.001) {
+          await db.from('orders').update({ shares: parseFloat(opp.shares||0) - reduce }).eq('id', opp.id);
+          remaining -= reduce;
+        }
+      }
+    }
 
     // Update portfolio_position (match markets only)
     if (!bsState.isFancy) {
@@ -1301,14 +1397,14 @@ async function confirmBet() {
     document.getElementById('sucStake').textContent   = `🪙 ${fmt(stake,0)}`;
     document.getElementById('sucWin').textContent     = `🪙 ${fmt(netPayout,2)}`;
     document.getElementById('sucProfit').textContent  = `🪙 ${fmt(netProfit,2)}`;
-    document.getElementById('sucBalance').textContent = `🪙 ${fmt(bal - stake,2)}`;
+    document.getElementById('sucBalance').textContent = `🪙 ${fmt(bal - effectiveDeduction,2)}`;
     document.getElementById('bsSucSub').textContent   = bsState.isFancy
       ? `${bsState.side} @ line ${bsState.line}`
       : `${bsState.side} @ ${bp.toFixed(2)}`;
     document.getElementById('bsSuccessState').style.display = 'block';
 
     // Update header balance immediately
-    const newBal = fmt(bal - stake, 2);
+    const newBal = fmt(bal - effectiveDeduction, 2);
     document.getElementById('headerBalance').textContent = newBal;
     document.getElementById('acctBalance').textContent   = newBal;
 
@@ -1382,9 +1478,30 @@ function renderPortfolioTab() {
   const openOrds  = myOrders.filter(o => o.status === 'OPEN');
   const totStaked = openOrds.reduce((s,o) => s + parseFloat(o.total_cost||0), 0);
   const totPotWin = openOrds.reduce((s,o) => s + parseFloat(o.shares||0), 0);
+
+  // Live unrealised P&L for open match bets (based on current odds vs entry odds)
+  let netUnrealisedPnl = 0;
+  openOrds.forEach(o => {
+    if (o.events?.market_type !== 'FANCY') {
+      const bp = parseFloat(o.price_per_share||1);
+      const curOc = allOutcomes.find(oc => oc.id === o.outcome_id);
+      const curBP = parseFloat(curOc?.back_price || bp);
+      netUnrealisedPnl += (parseFloat(o.total_cost||0) * (bp / curBP)) - parseFloat(o.total_cost||0);
+    }
+  });
+
   document.getElementById('portOpenCount').textContent = openOrds.length;
   document.getElementById('portStaked').textContent    = `🪙 ${fmt(totStaked,0)}`;
   document.getElementById('portPotWin').textContent    = `🪙 ${fmt(totPotWin,0)}`;
+  const pnlEl = document.getElementById('portNetPnl');
+  if (pnlEl) {
+    if (openOrds.some(o => o.events?.market_type !== 'FANCY')) {
+      pnlEl.textContent = `${netUnrealisedPnl>=0?'+':''}🪙${fmt(Math.abs(netUnrealisedPnl),0)}`;
+      pnlEl.style.color = netUnrealisedPnl > 0.5 ? '#10b981' : netUnrealisedPnl < -0.5 ? '#ef4444' : '#94a3b8';
+    } else {
+      pnlEl.textContent = '—'; pnlEl.style.color = '#94a3b8';
+    }
+  }
   const sumEl = document.getElementById('portfolioSummary');
   sumEl.style.display = openOrds.length ? 'grid' : 'none';
 
@@ -1418,6 +1535,11 @@ function renderPortfolioTab() {
       ${g.orders.map(renderPosCard).join('')}
     </div>`;
   }).join('');
+
+  // Initialize exit previews for all rendered open non-fancy bets
+  setTimeout(() => {
+    openOrds.filter(o => o.events?.market_type !== 'FANCY').forEach(o => updateExitPreview(o.id));
+  }, 50);
 }
 
 function renderPosCard(ord) {
