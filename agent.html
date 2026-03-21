@@ -3,701 +3,1764 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agent Dashboard | Bhandai Exchange</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <title>Agent Panel | Bhandai Exchange</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth.js"></script>
   <style>
-    body {
-      background: #0f172a;
-      display: flex;
-      height: 100vh;
-      overflow: hidden;
-      margin: 0;
-    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #0f172a; color: #e2e8f0; display: flex; height: 100vh; overflow: hidden; }
+    ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
 
-    /* Sidebar - Agent Specific Colors (Purple hue) */
-    .agent-sidebar {
-      width: 280px;
-      background: #1e1b4b; /* Deep purple background for agent */
-      border-right: 1px solid #312e81;
-      display: flex;
-      flex-direction: column;
-    }
+    /* SIDEBAR */
+    .sidebar { width: 244px; background: #1e1b4b; border-right: 1px solid #312e81; display: flex; flex-direction: column; flex-shrink: 0; }
+    .sidebar-brand { padding: 18px 22px; border-bottom: 1px solid #312e81; }
+    .sidebar-brand .title { font-size: 1.05rem; font-weight: 800; color: white; }
+    .sidebar-brand .sub { font-size: 0.67rem; color: #a5b4fc; margin-top: 2px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+    .sidebar-nav { flex: 1; padding: 10px 0; overflow-y: auto; }
+    .nav-section { padding: 10px 22px 3px; font-size: 0.58rem; font-weight: 700; color: #4338ca; text-transform: uppercase; letter-spacing: 0.12em; }
+    .nav-item { padding: 9px 22px; color: #a5b4fc; display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 0.855rem; cursor: pointer; transition: all 0.15s; user-select: none; border-left: 3px solid transparent; }
+    .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+    .nav-item.active { background: rgba(139,92,246,0.15); color: #a78bfa; border-left-color: #8b5cf6; }
+    .nav-icon { width: 18px; text-align: center; font-size: 0.95rem; }
+    .sidebar-footer { padding: 14px 22px; border-top: 1px solid #312e81; }
+    .sidebar-bal-label { font-size: 0.65rem; color: #6366f1; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+    .sidebar-bal-val { font-family: 'JetBrains Mono', monospace; font-size: 1.15rem; font-weight: 700; color: white; }
+    .sidebar-id { font-size: 0.7rem; color: #818cf8; margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
 
-    .sidebar-header {
-      padding: 24px;
-      font-size: 1.25rem;
-      font-weight: 800;
-      color: white;
-      border-bottom: 1px solid #312e81;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    /* MAIN */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar { height: 58px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; padding: 0 26px; flex-shrink: 0; }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .topbar-title { font-size: 0.93rem; font-weight: 700; color: white; }
+    .topbar-sub { font-size: 0.75rem; color: #94a3b8; font-family: 'JetBrains Mono', monospace; }
+    .topbar-right { display: flex; align-items: center; gap: 9px; }
+    .live-dot { width: 7px; height: 7px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.2)} }
+    .refresh-btn { background: #334155; border: none; color: #94a3b8; padding: 6px 13px; border-radius: 6px; font-size: 0.77rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .refresh-btn:hover { background: #475569; color: white; }
+    .logout-btn { background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 6px 14px; border-radius: 6px; font-size: 0.77rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .logout-btn:hover { border-color: #ef4444; color: #ef4444; }
 
-    .sidebar-nav {
-      flex: 1;
-      padding: 16px 0;
-      overflow-y: auto;
-    }
+    /* CONTENT */
+    .content { flex: 1; overflow-y: auto; padding: 22px 26px; }
+    .tab-content { display: none; } .tab-content.active { display: block; }
+    .page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20px; }
+    .page-title { font-size: 1.25rem; font-weight: 800; color: white; }
+    .page-sub { font-size: 0.75rem; color: #64748b; margin-top: 3px; }
 
-    .nav-item {
-      padding: 12px 24px;
-      color: #a5b4fc;
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-weight: 500;
-      transition: all 0.2s;
-      cursor: pointer;
-    }
+    /* STAT CARDS */
+    .stats-grid { display: grid; gap: 13px; margin-bottom: 18px; }
+    .stats-grid-4 { grid-template-columns: repeat(4,1fr); }
+    .stats-grid-3 { grid-template-columns: repeat(3,1fr); }
+    .stats-grid-2 { grid-template-columns: repeat(2,1fr); }
+    .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 17px 20px; }
+    .stat-card.accent-purple { border-left: 3px solid #8b5cf6; }
+    .stat-card.accent-green  { border-left: 3px solid #10b981; }
+    .stat-card.accent-blue   { border-left: 3px solid #3b82f6; }
+    .stat-card.accent-amber  { border-left: 3px solid #f59e0b; }
+    .stat-card.accent-red    { border-left: 3px solid #ef4444; }
+    .stat-label { color: #64748b; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 7px; }
+    .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 1.45rem; font-weight: 700; color: white; line-height: 1; }
+    .stat-value.green { color: #10b981; } .stat-value.red { color: #ef4444; }
+    .stat-value.blue { color: #3b82f6; } .stat-value.purple { color: #a78bfa; }
+    .stat-value.amber { color: #f59e0b; }
+    .stat-change { font-size: 0.68rem; color: #475569; margin-top: 5px; }
 
-    .nav-item:hover {
-      background: rgba(255,255,255,0.05);
-      color: white;
-    }
+    /* CARDS + TABLES */
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+    .card-header { padding: 13px 20px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .card-title { font-size: 0.865rem; font-weight: 700; color: white; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #0f172a; padding: 8px 16px; color: #475569; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+    td { padding: 12px 16px; border-bottom: 1px solid #1e293b; color: #cbd5e1; font-size: 0.845rem; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; } tr:hover td { background: rgba(255,255,255,0.02); }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .text-white { color: white !important; font-weight: 600; } .text-muted { color: #64748b; }
 
-    .nav-item.active {
-      background: rgba(99, 102, 241, 0.15);
-      color: #818cf8;
-      border-left: 3px solid #6366f1;
-    }
+    /* BADGES */
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 5px; font-size: 0.67rem; font-weight: 700; white-space: nowrap; }
+    .badge-agent     { background: rgba(139,92,246,0.15); color: #a78bfa; }
+    .badge-client    { background: rgba(16,185,129,0.15); color: #34d399; }
+    .badge-active    { background: rgba(16,185,129,0.15); color: #10b981; }
+    .badge-suspended { background: rgba(239,68,68,0.1); color: #f87171; }
+    .badge-live      { background: rgba(16,185,129,0.15); color: #10b981; }
+    .badge-settled   { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .badge-void      { background: rgba(148,163,184,0.15); color: #94a3b8; }
+    .badge-paused    { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; background: currentColor; }
 
-    /* Main Content */
-    .admin-main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-    }
+    /* BUTTONS */
+    .btn { padding: 6px 13px; border-radius: 6px; font-size: 0.77rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; white-space: nowrap; }
+    .btn-primary { background: #7c3aed; color: white; border-color: #7c3aed; }
+    .btn-primary:hover { background: #6d28d9; }
+    .btn-success { background: rgba(16,185,129,0.15); color: #10b981; border-color: rgba(16,185,129,0.3); }
+    .btn-success:hover { background: rgba(16,185,129,0.25); }
+    .btn-danger { background: rgba(239,68,68,0.15); color: #ef4444; border-color: rgba(239,68,68,0.3); }
+    .btn-danger:hover { background: rgba(239,68,68,0.25); }
+    .btn-warning { background: rgba(245,158,11,0.15); color: #f59e0b; border-color: rgba(245,158,11,0.3); }
+    .btn-warning:hover { background: rgba(245,158,11,0.25); }
+    .btn-ghost { background: #334155; color: #cbd5e1; border-color: #334155; }
+    .btn-ghost:hover { background: #475569; color: white; }
+    .btn-sm { padding: 3px 9px; font-size: 0.72rem; }
+    .btn-lg { padding: 10px 20px; font-size: 0.88rem; width: 100%; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-group { display: flex; gap: 5px; }
 
-    .topbar {
-      height: 70px;
-      background: #1e293b;
-      border-bottom: 1px solid #334155;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 32px;
-    }
+    /* SEARCH / FILTER */
+    .search-input { background: #0f172a; border: 1px solid #334155; color: white; padding: 6px 12px; border-radius: 6px; font-size: 0.82rem; width: 185px; outline: none; }
+    .search-input:focus { border-color: #8b5cf6; }
+    .search-input::placeholder { color: #475569; }
+    .filter-bar { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; padding: 11px 16px; background: #0f172a; border-bottom: 1px solid #334155; }
+    .filter-bar input, .filter-bar select { background: #1e293b; border: 1px solid #334155; color: white; padding: 6px 10px; border-radius: 6px; font-size: 0.79rem; outline: none; }
+    .filter-bar label { font-size: 0.72rem; color: #64748b; font-weight: 600; }
 
-    .content-area {
-      padding: 32px;
-    }
+    /* MODALS */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #1e293b; border: 1px solid #334155; border-radius: 16px; width: 460px; max-width: 96vw; max-height: 92vh; overflow-y: auto; }
+    .modal-lg { width: 560px; } .modal-xl { width: 700px; }
+    .modal-header { padding: 17px 22px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #1e293b; z-index: 1; }
+    .modal-title { font-size: 0.93rem; font-weight: 700; color: white; }
+    .modal-close { background: none; border: none; color: #64748b; font-size: 1.35rem; cursor: pointer; line-height: 1; }
+    .modal-close:hover { color: white; }
+    .modal-body { padding: 20px 22px; }
+    .modal-footer { padding: 13px 22px; border-top: 1px solid #334155; display: flex; gap: 9px; justify-content: flex-end; }
+    .form-group { margin-bottom: 13px; }
+    .form-group label { display: block; color: #94a3b8; font-size: 0.77rem; font-weight: 600; margin-bottom: 5px; }
+    .form-input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 8px 12px; color: white; font-size: 0.845rem; outline: none; transition: border-color 0.15s; }
+    .form-input:focus { border-color: #8b5cf6; }
+    .form-select { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 8px 12px; color: white; font-size: 0.845rem; outline: none; appearance: none; cursor: pointer; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    .form-hint { font-size: 0.68rem; color: #64748b; margin-top: 3px; }
 
-    .tab-content {
-      display: none;
-    }
+    /* TOAST */
+    #toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 7px; }
+    .toast { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px 15px; font-size: 0.82rem; color: #e2e8f0; display: flex; align-items: center; gap: 9px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: slideIn 0.2s ease; min-width: 240px; }
+    .toast.success { border-left: 3px solid #10b981; }
+    .toast.error   { border-left: 3px solid #ef4444; }
+    .toast.info    { border-left: 3px solid #8b5cf6; }
+    @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
 
-    .tab-content.active {
-      display: block;
-    }
-
-    /* Quick Stats */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 24px;
-      margin-bottom: 32px;
-    }
-
-    .stat-card {
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      padding: 24px;
-    }
-
-    .stat-title {
-      color: #94a3b8;
-      font-size: 0.85rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 8px;
-    }
-
-    .stat-value {
-      color: white;
-      font-size: 1.8rem;
-      font-weight: 700;
-      font-family: monospace;
-    }
-
-    .stat-value.up { color: #10b981; }
-    .stat-value.down { color: #ef4444; }
-
-    /* Tables */
-    .table-container {
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      overflow: hidden;
-      margin-bottom: 24px;
-    }
-
-    .table-header {
-      padding: 20px 24px;
-      border-bottom: 1px solid #334155;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-    }
-
-    th {
-      background: #0f172a;
-      padding: 12px 24px;
-      color: #94a3b8;
-      font-weight: 600;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-    }
-
-    td {
-      padding: 16px 24px;
-      border-bottom: 1px solid #334155;
-      color: #e2e8f0;
-      font-size: 0.95rem;
-    }
-
-    tr:hover td {
-      background: rgba(255,255,255,0.02);
-    }
-
-    /* Action Buttons */
-    .action-btn {
-      background: #334155;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      margin-right: 8px;
-    }
-    
-    .action-btn:hover { background: #475569; }
-    .action-btn.deposit { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); }
-    .action-btn.withdraw { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
-
-    .form-group label {
-      color: #94a3b8; font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 8px;
-    }
-    .form-group input {
-      width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: white;
-      box-sizing: border-box;
-    }
-    
+    /* MISC */
+    .empty { text-align: center; padding: 34px 16px; color: #475569; }
+    .empty-icon { font-size: 2rem; margin-bottom: 9px; opacity: 0.5; }
+    .empty-text { font-size: 0.845rem; }
+    .feed-item { display: flex; gap: 11px; padding: 10px 16px; border-bottom: 1px solid #1e293b; align-items: flex-start; }
+    .feed-item:last-child { border-bottom: none; }
+    .feed-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+    .feed-dot.green { background: #10b981; } .feed-dot.red { background: #ef4444; }
+    .feed-dot.blue { background: #3b82f6; } .feed-dot.amber { background: #f59e0b; }
+    .feed-content { flex: 1; } .feed-text { font-size: 0.79rem; color: #cbd5e1; line-height: 1.4; }
+    .feed-text strong { color: white; } .feed-time { font-size: 0.67rem; color: #475569; margin-top: 2px; }
+    .feed-amount { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; font-weight: 700; flex-shrink: 0; }
+    .util-bar { background: #334155; height: 5px; border-radius: 3px; margin-top: 3px; overflow: hidden; }
+    .util-fill { height: 100%; border-radius: 3px; }
+    .util-ok { background: #10b981; } .util-warn { background: #f59e0b; } .util-crit { background: #ef4444; }
+    .creds-box { background: #0f172a; border: 1px dashed #334155; border-radius: 8px; padding: 14px; font-family: 'JetBrains Mono', monospace; margin-top: 14px; text-align: center; }
+    .cred-label { color: #64748b; font-size: 0.75rem; margin-bottom: 3px; }
+    .cred-value { color: white; font-size: 1.1rem; font-weight: 700; }
+    .acc-section { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px 22px; margin-bottom: 16px; }
+    .acc-section h3 { font-size: 0.855rem; font-weight: 700; color: white; margin-bottom: 13px; padding-bottom: 10px; border-bottom: 1px solid #334155; }
+    .acc-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #1e293b; }
+    .acc-row:last-child { border-bottom: none; }
+    .acc-label { font-size: 0.82rem; color: #94a3b8; }
+    .acc-val { font-size: 0.845rem; color: white; font-weight: 600; }
+    .settle-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 18px; }
+    .settle-row { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 6px; }
+    .settle-row .lbl { color: #94a3b8; } .settle-row .val { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: white; }
+    .hr { border: none; border-top: 1px solid #334155; margin: 10px 0; }
+    .announcement-card { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; }
+    .announcement-msg { color: #e2e8f0; font-size: 0.845rem; line-height: 1.5; }
+    .announcement-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.68rem; color: #475569; }
+    .pw-row { display: flex; align-items: center; gap: 5px; }
   </style>
 </head>
 <body>
 
-  <!-- Sidebar -->
-  <aside class="agent-sidebar">
-    <div class="sidebar-header">
-      <span style="font-size: 1.5rem;">💼</span>
-      Agent Panel
-    </div>
-    <div class="sidebar-nav">
-      <div class="nav-item active" onclick="switchTab('dashboard')" id="nav-dashboard">📊 Agent Dashboard</div>
-      <div class="nav-item" onclick="switchTab('clients')" id="nav-clients">👥 Client Management</div>
-      <div class="nav-item" onclick="switchTab('ledger')" id="nav-ledger">💰 Ledger (My Bank)</div>
-      <div class="nav-item" onclick="switchTab('transactions')" id="nav-transactions">📝 Transaction Log</div>
-    </div>
-    <div style="padding: 24px; border-top: 1px solid #312e81; margin-top: auto;">
-       <div style="color: #a5b4fc; font-size: 0.8rem; margin-bottom: 8px; font-weight: 600;">MY AVAILABLE CREDIT</div>
-       <div style="font-family: monospace; font-size: 1.4rem; font-weight: bold; color: white;">🪙 <span id="agentCreditDisplay">0.00</span></div>
-    </div>
-  </aside>
+<!-- Session warning banner -->
+<div id="session-warning-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:#f59e0b;color:#0f172a;padding:9px 22px;font-weight:600;font-size:0.83rem;align-items:center;justify-content:space-between;gap:10px;">
+  <span>⚠️ Session expiring in 2 minutes due to inactivity. Click anywhere to stay logged in.</span>
+  <button onclick="document.getElementById('session-warning-banner').style.display='none'" style="background:rgba(0,0,0,0.15);border:none;color:#0f172a;padding:3px 11px;border-radius:4px;cursor:pointer;font-weight:700;">Dismiss</button>
+</div>
 
-  <!-- Main Content -->
-  <main class="admin-main">
-    <header class="topbar">
-      <div style="color: #94a3b8; font-weight: 500;">Welcome back, <span id="agentIdDisplay" style="color: white; font-weight: 700;">--</span></div>
-      <button class="logout-btn" style="padding: 8px 24px; border-radius: 6px; background: #334155; color: white; border: none; font-weight: 600; cursor: pointer;">Log Out</button>
-    </header>
+<!-- Auth gate -->
+<div id="authGate" style="position:fixed;inset:0;background:#0f172a;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
+  <div style="width:32px;height:32px;border:3px solid #1e293b;border-top-color:#8b5cf6;border-radius:50%;animation:authSpin 0.7s linear infinite;"></div>
+  <div style="color:#475569;font-size:0.83rem;">Verifying access…</div>
+</div>
+<style>@keyframes authSpin{to{transform:rotate(360deg)}}</style>
 
-    <div class="content-area">
-      
-      <!-- TAB: DASHBOARD -->
-      <div id="tab-dashboard" class="tab-content active">
-        <h2 style="color: white; margin-top: 0; margin-bottom: 24px;">Agent Overview</h2>
-        
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-title">My Total P&L</div>
-            <div class="stat-value up">+ 🪙 <span id="dashPnl">0</span></div>
-          </div>
-          <div class="stat-card">
-             <!-- The amount of coins this agent has handed out to clients that is currently unused -->
-            <div class="stat-title">Unused Client Balance</div>
-            <div class="stat-value">🪙 <span id="dashClientBal">0</span></div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-title">Total Active Clients</div>
-            <div class="stat-value" style="color: #818cf8;"><span id="dashClientsCount">0</span></div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-title">My Commission Earned</div>
-            <div class="stat-value up" style="color: #f59e0b;">🪙 <span id="dashCommission">0.00</span></div>
-          </div>
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="title">👤 Agent Panel</div>
+    <div class="sub">Bhandai Exchange</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Overview</div>
+    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-section">Operations</div>
+    <div class="nav-item" data-tab="clients" onclick="switchTab('clients')">
+      <span class="nav-icon">👥</span> My Clients
+    </div>
+    <div class="nav-item" data-tab="ledger" onclick="switchTab('ledger')">
+      <span class="nav-icon">💰</span> Ledger
+    </div>
+    <div class="nav-item" data-tab="betlog" onclick="switchTab('betlog')">
+      <span class="nav-icon">📋</span> Bet Log
+    </div>
+    <div class="nav-section">Intelligence</div>
+    <div class="nav-item" data-tab="pnl" onclick="switchTab('pnl')">
+      <span class="nav-icon">📈</span> P&amp;L Report
+    </div>
+    <div class="nav-item" data-tab="markets" onclick="switchTab('markets')">
+      <span class="nav-icon">🏏</span> Live Markets
+    </div>
+    <div class="nav-section">Platform</div>
+    <div class="nav-item" data-tab="settlement" onclick="switchTab('settlement')">
+      <span class="nav-icon">🤝</span> Settlement
+    </div>
+    <div class="nav-item" data-tab="announcements" onclick="switchTab('announcements')">
+      <span class="nav-icon">📣</span> Announcements
+    </div>
+    <div class="nav-item" data-tab="account" onclick="switchTab('account')">
+      <span class="nav-icon">🔑</span> My Account
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-bal-label">My Balance</div>
+    <div class="sidebar-bal-val">🪙 <span id="sidebarBalance">0.00</span></div>
+    <div class="sidebar-id" id="sidebarId">—</div>
+  </div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="live-dot"></div>
+      <div>
+        <div class="topbar-title" id="topbarTitle">Dashboard</div>
+        <div class="topbar-sub">Logged in as: <span id="agentIdDisplay">—</span></div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="lastRefreshed" style="font-size:0.7rem;color:#475569;"></span>
+      <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button>
+      <button class="logout-btn">Log Out</button>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="page-header">
+        <div><div class="page-title">My Dashboard</div><div class="page-sub">Overview of your book</div></div>
+        <span id="dashDate" style="font-size:0.72rem;color:#475569;"></span>
+      </div>
+      <div class="stats-grid stats-grid-4">
+        <div class="stat-card accent-purple">
+          <div class="stat-label">My Balance</div>
+          <div class="stat-value purple">🪙 <span id="dashMyBal">0</span></div>
+          <div class="stat-change">Available chips</div>
         </div>
-
-        <div class="table-container">
-          <div class="table-header">
-            <h3 style="margin: 0; color: white; font-weight: 600;">High-Value Clients (Watchlist)</h3>
+        <div class="stat-card accent-green">
+          <div class="stat-label">Coins Deployed</div>
+          <div class="stat-value green">🪙 <span id="dashDeployed">0</span></div>
+          <div class="stat-change">Sum of client balances</div>
+        </div>
+        <div class="stat-card accent-blue">
+          <div class="stat-label">Total Clients</div>
+          <div class="stat-value blue"><span id="dashClients">0</span></div>
+          <div class="stat-change"><span id="dashActiveClients">0</span> active · <span id="dashSuspendedClients">0</span> suspended</div>
+        </div>
+        <div class="stat-card accent-amber">
+          <div class="stat-label">Live Bets</div>
+          <div class="stat-value amber"><span id="dashLiveBets">0</span></div>
+          <div class="stat-change">🪙 <span id="dashLiveVol">0</span> open volume</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 360px;gap:16px;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Client Summary</div>
+            <button class="btn btn-primary btn-sm" onclick="openCreateClientModal()">+ New Client</button>
           </div>
           <table>
-            <thead>
-              <tr>
-                <th>Client ID</th>
-                <th>Name</th>
-                <th>Current Balance</th>
-                <th>Profit/Loss</th>
-              </tr>
-            </thead>
-            <tbody id="topClientsTable">
-              <!-- Populated by JS -->
-            </tbody>
+            <thead><tr><th>Client</th><th>Balance</th><th>Status</th><th>Bets</th></tr></thead>
+            <tbody id="dashClientsTable"><tr><td colspan="4"><div class="empty"><div class="empty-icon">👥</div><div class="empty-text">No clients yet</div></div></td></tr></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Recent Activity</div>
+            <span style="font-size:0.7rem;color:#64748b;">Last 8</span>
+          </div>
+          <div id="dashActivity"><div class="empty" style="padding:22px;"><div class="empty-icon">📡</div><div class="empty-text">No activity yet</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ MY CLIENTS ═══ -->
+    <div id="tab-clients" class="tab-content">
+      <div class="page-header">
+        <div><div class="page-title">My Clients</div><div class="page-sub">Manage all clients under your book</div></div>
+        <button class="btn btn-primary" onclick="openCreateClientModal()">+ New Client</button>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex;gap:7px;flex-wrap:wrap;">
+            <button class="filter-btn active" data-status-filter="ALL" onclick="setStatusFilter(this,'ALL')">All</button>
+            <button class="filter-btn" data-status-filter="ACTIVE" onclick="setStatusFilter(this,'ACTIVE')">Active</button>
+            <button class="filter-btn" data-status-filter="SUSPENDED" onclick="setStatusFilter(this,'SUSPENDED')">Suspended</button>
+          </div>
+          <input type="text" class="search-input" id="clientSearch" placeholder="Search ID or name…" oninput="renderClients()">
+        </div>
+        <table>
+          <thead><tr>
+            <th>Client (ID · Name · Phone)</th><th>Balance</th><th>Status / Last Seen</th>
+            <th>Share %</th><th>Credentials</th><th style="text-align:right;">Actions</th>
+          </tr></thead>
+          <tbody id="clientsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ LEDGER ═══ -->
+    <div id="tab-ledger" class="tab-content">
+      <div class="page-header">
+        <div><div class="page-title">Ledger</div><div class="page-sub">Chip flow within your book</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="downloadLedgerCSV()">⬇ Export CSV</button>
+      </div>
+      <div class="stats-grid stats-grid-3">
+        <div class="stat-card accent-purple">
+          <div class="stat-label">Total Deployed (Clients)</div>
+          <div class="stat-value purple">🪙 <span id="ledgerDeployed">0.00</span></div>
+          <div class="stat-change">Sum of all client balances</div>
+        </div>
+        <div class="stat-card accent-green">
+          <div class="stat-label">Total Issued to Clients</div>
+          <div class="stat-value green">🪙 <span id="ledgerIssued">0.00</span></div>
+          <div class="stat-change">Total deposits made</div>
+        </div>
+        <div class="stat-card accent-amber">
+          <div class="stat-label">Total Cash Settled</div>
+          <div class="stat-value amber">🪙 <span id="ledgerCollected">0.00</span></div>
+          <div class="stat-change">Client chips redeemed for cash</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Balance Register</div>
+          <input type="text" class="search-input" id="ledgerSearch" placeholder="Search client…" oninput="renderLedger()">
+        </div>
+        <table>
+          <thead><tr><th>Client</th><th>Balance</th><th>Issued</th><th>Cash Settled</th><th>Util %</th><th style="text-align:right;">Cashier</th></tr></thead>
+          <tbody id="ledgerTableBody"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Transaction Log</div>
+          <button class="btn btn-ghost btn-sm" onclick="downloadLedgerCSV()">⬇ CSV</button>
+        </div>
+        <div class="filter-bar">
+          <label>From</label><input type="date" id="txFrom" onchange="renderLedger()">
+          <label>To</label><input type="date" id="txTo" onchange="renderLedger()">
+          <select id="txTypeFilter" onchange="renderLedger()">
+            <option value="">All Types</option>
+            <option value="DEPOSIT">Deposit</option>
+            <option value="WITHDRAWAL">Withdrawal</option>
+            <option value="SETTLEMENT">Settlement</option>
+          </select>
+          <input type="text" id="txUserSearch" placeholder="Search client…" style="width:140px;" oninput="renderLedger()">
+        </div>
+        <table>
+          <thead><tr><th>Time</th><th>Type</th><th>From</th><th>To</th><th>Note</th><th style="text-align:right;">Amount</th></tr></thead>
+          <tbody id="txLogBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ BET LOG ═══ -->
+    <div id="tab-betlog" class="tab-content">
+      <div class="page-header">
+        <div><div class="page-title">Bet Log</div><div class="page-sub">All bets placed by your clients</div></div>
+      </div>
+      <div class="stats-grid stats-grid-3">
+        <div class="stat-card accent-blue">
+          <div class="stat-label">Today's Bets</div>
+          <div class="stat-value blue"><span id="betToday">0</span></div>
+          <div class="stat-change">Orders today</div>
+        </div>
+        <div class="stat-card accent-purple">
+          <div class="stat-label">Total Volume</div>
+          <div class="stat-value purple">🪙 <span id="betVolume">0.00</span></div>
+          <div class="stat-change">All time</div>
+        </div>
+        <div class="stat-card accent-amber">
+          <div class="stat-label">Avg Bet Size</div>
+          <div class="stat-value amber">🪙 <span id="betAvg">0.00</span></div>
+          <div class="stat-change">Per order</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">All Orders</div></div>
+        <div class="filter-bar">
+          <label>From</label><input type="date" id="betFrom" onchange="renderBetLog()">
+          <label>To</label><input type="date" id="betTo" onchange="renderBetLog()">
+          <select id="betClientFilter" onchange="renderBetLog()"><option value="">All Clients</option></select>
+          <select id="betEventFilter" onchange="renderBetLog()"><option value="">All Markets</option></select>
+        </div>
+        <table>
+          <thead><tr><th>Time</th><th>Client</th><th>Market / Outcome</th><th>Type</th><th>Shares</th><th>Price</th><th style="text-align:right;">Cost</th></tr></thead>
+          <tbody id="betlogTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ P&L ═══ -->
+    <div id="tab-pnl" class="tab-content">
+      <div class="page-header">
+        <div><div class="page-title">P&amp;L Report</div><div class="page-sub">Commission &amp; performance analysis</div></div>
+      </div>
+      <div class="stats-grid stats-grid-4">
+        <div class="stat-card accent-purple">
+          <div class="stat-label">Total Client Volume</div>
+          <div class="stat-value purple">🪙 <span id="pnlVolume">0</span></div>
+          <div class="stat-change">All client bets</div>
+        </div>
+        <div class="stat-card accent-green">
+          <div class="stat-label">Est. Commission</div>
+          <div class="stat-value green">🪙 <span id="pnlComm">0</span></div>
+          <div class="stat-change">At match comm rate</div>
+        </div>
+        <div class="stat-card accent-blue">
+          <div class="stat-label">Net Chips Received</div>
+          <div class="stat-value blue">🪙 <span id="pnlNetReceived">0</span></div>
+          <div class="stat-change">From admin (net)</div>
+        </div>
+        <div class="stat-card accent-amber">
+          <div class="stat-label">My + Client Position</div>
+          <div class="stat-value amber">🪙 <span id="pnlPosition">0</span></div>
+          <div class="stat-change">Total book value</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Per-Client Performance</div></div>
+        <table>
+          <thead><tr><th>Client</th><th>Total Bets</th><th>Volume</th><th>Est. Commission</th><th>Balance</th><th>Net Deployed</th></tr></thead>
+          <tbody id="pnlClientTable"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Settled Market P&amp;L</div></div>
+        <table>
+          <thead><tr><th>Market</th><th>Settled</th><th>Client Volume</th><th>Winner</th><th>Est. Outcome</th></tr></thead>
+          <tbody id="pnlMarketsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ LIVE MARKETS (read-only) ═══ -->
+    <div id="tab-markets" class="tab-content">
+      <div class="page-header">
+        <div><div class="page-title">Live Markets</div><div class="page-sub">Current active markets — read only</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex;gap:7px;flex-wrap:wrap;" id="catFilterBtns">
+            <button class="filter-btn active" data-cat="ALL" onclick="setCatFilter(this,'ALL')">All</button>
+            <button class="filter-btn" data-cat="Cricket" onclick="setCatFilter(this,'Cricket')">Cricket</button>
+            <button class="filter-btn" data-cat="Football" onclick="setCatFilter(this,'Football')">Football</button>
+            <button class="filter-btn" data-cat="Politics" onclick="setCatFilter(this,'Politics')">Politics</button>
+            <button class="filter-btn" data-cat="Other" onclick="setCatFilter(this,'Other')">Other</button>
+          </div>
+          <input type="text" class="search-input" id="marketSearch" placeholder="Search market…" oninput="renderMarkets()">
+        </div>
+        <table>
+          <thead><tr><th>Market</th><th>Category</th><th>Outcomes & Prices</th><th>Status</th><th>Closes</th><th style="text-align:right;">My Client Volume</th></tr></thead>
+          <tbody id="marketsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ SETTLEMENT ═══ -->
+    <div id="tab-settlement" class="tab-content">
+      <div class="page-header">
+        <div><div class="page-title">Settlement</div><div class="page-sub">My financial position with admin</div></div>
+      </div>
+      <div class="stats-grid stats-grid-4">
+        <div class="stat-card accent-green">
+          <div class="stat-label">Received from Admin</div>
+          <div class="stat-value green">🪙 <span id="settleReceived">0.00</span></div>
+          <div class="stat-change">Total deposits from admin</div>
+        </div>
+        <div class="stat-card accent-red">
+          <div class="stat-label">Returned to Admin</div>
+          <div class="stat-value red">🪙 <span id="settleReturned">0.00</span></div>
+          <div class="stat-change">Chip returns to admin</div>
+        </div>
+        <div class="stat-card accent-blue">
+          <div class="stat-label">Settled with Admin</div>
+          <div class="stat-value blue">🪙 <span id="settleStatCashSettled">0.00</span></div>
+          <div class="stat-change">Cash collected by admin</div>
+        </div>
+        <div class="stat-card accent-red">
+          <div class="stat-label">Outstanding to Admin</div>
+          <div class="stat-value red">🪙 <span id="settleOutstandingStat">0.00</span></div>
+          <div class="stat-change" id="settleOutstandingStatNote">Net owed to admin</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="settle-card">
+          <div class="card-title" style="margin-bottom:14px;">📊 Chip Accountability</div>
+          <div class="settle-row"><span class="lbl">Received from admin</span><span class="val" id="settleNetReceived" style="color:#10b981;">0.00</span></div>
+          <div class="settle-row"><span class="lbl">Returned to admin</span><span class="val" id="settleReturnedNet" style="color:#ef4444;">0.00</span></div>
+          <div class="settle-row" id="settleCashSettledRow" style="display:none;"><span class="lbl">Cash settled (burned)</span><span class="val" id="settleCashSettled" style="color:#f59e0b;">−🪙 0.00</span></div>
+          <!-- Direct admin activity on my clients — shown only when non-zero -->
+          <div id="settleDirectSection" style="display:none;border-top:1px dashed #1e293b;padding-top:8px;margin:6px 0;">
+            <div style="font-size:0.68rem;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;">Admin → Your Clients (Direct)</div>
+            <div class="settle-row" id="settleDirectToRow" style="display:none;"><span class="lbl" style="color:#94a3b8;">Added to clients</span><span class="val" id="settleDirectTo" style="color:#f59e0b;">+🪙 0.00</span></div>
+            <div class="settle-row" id="settleDirectFromRow" style="display:none;"><span class="lbl" style="color:#94a3b8;">Collected from clients</span><span class="val" id="settleDirectFrom" style="color:#10b981;">−🪙 0.00</span></div>
+          </div>
+          <div class="settle-row" style="border-top:1px solid #1e293b;padding-top:8px;margin-top:4px;"><span class="lbl" style="font-weight:600;">Net in circulation</span><span class="val" id="settleNetCirc" style="color:#e2e8f0;font-weight:700;">0.00</span></div>
+          <div class="settle-row"><span class="lbl">Current book value</span><span class="val" id="settleBookVal">0.00</span></div>
+          <hr class="hr">
+          <div class="settle-row" style="font-size:0.88rem;font-weight:700;">
+            <span id="settleStatusLabel" style="color:#64748b;">Chip Drift</span>
+            <span id="settleDrift" style="font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:800;color:#10b981;">🪙 0.00</span>
+          </div>
+          <div style="font-size:0.72rem;color:#64748b;margin-top:8px;" id="settleNote"></div>
+          <hr class="hr" style="margin:12px 0 10px;">
+          <div style="font-size:0.68rem;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Cash Settled with Admin</div>
+          <div class="settle-row"><span class="lbl" style="color:#94a3b8;">Settled (cash received by admin)</span><span class="val" id="settleAgentSettled" style="color:#10b981;">🪙 0.00</span></div>
+          <div class="settle-row" style="border-top:1px solid #334155;padding-top:8px;margin-top:4px;font-size:0.9rem;font-weight:700;">
+            <span class="lbl">Outstanding to Admin</span>
+            <span class="val" id="settleOutstanding" style="font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:800;">🪙 0.00</span>
+          </div>
+        </div>
+        <div class="settle-card">
+          <div class="card-title" style="margin-bottom:14px;">📋 Settlement History</div>
+          <table style="font-size:0.8rem;">
+            <thead><tr><th style="padding:6px 10px;">Date</th><th style="padding:6px 10px;">Type</th><th style="padding:6px 10px;text-align:right;">Amount</th></tr></thead>
+            <tbody id="settleHistoryBody"></tbody>
           </table>
         </div>
       </div>
+    </div>
 
-      <!-- TAB: CLIENT MANAGEMENT -->
-      <div id="tab-clients" class="tab-content">
-        <div class="table-container">
-          <div class="table-header">
-            <h3 style="margin: 0; color: white; font-weight: 600;">Client Management</h3>
-            <div>
-              <button class="action-btn" style="background:#10b981;border-color:#10b981;color:white;padding:10px 20px;" onclick="openCreateModal('CLIENT')">+ Create New Client</button>
+    <!-- ═══ ANNOUNCEMENTS ═══ -->
+    <div id="tab-announcements" class="tab-content">
+      <div class="page-header">
+        <div><div class="page-title">Announcements</div><div class="page-sub">Platform-wide messages from admin</div></div>
+      </div>
+      <div id="announcementsList"><div class="empty"><div class="empty-icon">📭</div><div class="empty-text">No announcements</div></div></div>
+    </div>
+
+    <!-- ═══ ACCOUNT ═══ -->
+    <div id="tab-account" class="tab-content">
+      <div class="page-header">
+        <div><div class="page-title">My Account</div><div class="page-sub">Profile &amp; security settings</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div class="acc-section">
+            <h3>👤 Agent Profile</h3>
+            <div class="acc-row"><span class="acc-label">Login ID</span><span class="acc-val mono" id="accLoginId">—</span></div>
+            <div class="acc-row"><span class="acc-label">Full Name</span><span class="acc-val" id="accName">—</span></div>
+            <div class="acc-row"><span class="acc-label">Phone</span><span class="acc-val" id="accPhone">—</span></div>
+            <div class="acc-row"><span class="acc-label">Balance</span><span class="acc-val mono" id="accBalance">—</span></div>
+            <div class="acc-row"><span class="acc-label">Status</span><span id="accStatus">—</span></div>
+            <div class="acc-row"><span class="acc-label">Member Since</span><span class="acc-val" id="accSince">—</span></div>
+          </div>
+          <div class="acc-section">
+            <h3>💹 My Rates</h3>
+            <div class="acc-row"><span class="acc-label">Match Commission</span><span class="acc-val" id="accMatchComm">—</span></div>
+            <div class="acc-row"><span class="acc-label">Fancy Commission</span><span class="acc-val" id="accFancyComm">—</span></div>
+            <div class="acc-row"><span class="acc-label">Credit Limit</span><span class="acc-val mono" id="accCreditLimit">—</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="acc-section">
+            <h3>🔐 Change Password</h3>
+            <div class="form-group">
+              <label>Current Password</label>
+              <input type="password" class="form-input" id="pwCurrent" placeholder="Enter current password">
             </div>
+            <div class="form-group">
+              <label>New Password</label>
+              <input type="password" class="form-input" id="pwNew" placeholder="Min 6 characters">
+            </div>
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <input type="password" class="form-input" id="pwConfirm" placeholder="Re-enter new password">
+            </div>
+            <div id="pwError" style="color:#ef4444;font-size:0.78rem;margin-bottom:10px;"></div>
+            <button class="btn btn-primary btn-lg" onclick="changePassword()">Update Password</button>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Client ID</th>
-                <th>Status</th>
-                <th>Phone</th>
-                <th>My Share (%)</th>
-                <th>Available Balance</th>
-                <th style="text-align: right;">Cashier Actions</th>
-              </tr>
-            </thead>
-            <tbody id="clientManagementTableBody">
-              <!-- Populated via JS -->
-            </tbody>
-          </table>
         </div>
       </div>
-
-      <!-- TAB: LEDGER BOARD -->
-      <div id="tab-ledger" class="tab-content">
-        <h2 style="color: white; margin-top: 0; margin-bottom: 24px;">My Ledger (Up/Down Settlement)</h2>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;">
-             <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 24px; border-radius: 12px;">
-                 <div style="color: #ef4444; font-weight: 600; font-size: 0.9rem; margin-bottom: 8px;">I OWE ADMIN (UP)</div>
-                 <div style="font-family: monospace; font-size: 2rem; font-weight: bold; color: white;">🪙 0.00</div>
-             </div>
-             <div style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); padding: 24px; border-radius: 12px;">
-                 <div style="color: #10b981; font-weight: 600; font-size: 0.9rem; margin-bottom: 8px;">CLIENTS OWE ME (DOWN)</div>
-                 <div style="font-family: monospace; font-size: 2rem; font-weight: bold; color: white;">🪙 0.00</div>
-             </div>
-        </div>
-
-        <div class="table-container" style="background: #1e293b;">
-          <div class="table-header">
-             <h3 style="margin: 0; color: white; font-weight: 600;">Client Settlement Status</h3>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Client ID</th>
-                <th>Total Deposits</th>
-                <th>Total Withdrawals</th>
-                <th>Net Settlement</th>
-              </tr>
-            </thead>
-            <tbody id="ledgerTableBody">
-               <tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:24px;">No transactions linked yet.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      <!-- TAB: TRANSACTIONS -->
-      <div id="tab-transactions" class="tab-content">
-        <h2 style="color: white; margin-top: 0; margin-bottom: 24px;">Transaction Log</h2>
-        <div class="table-container">
-           <table>
-             <thead>
-               <tr>
-                 <th>Date</th>
-                 <th>Transaction Type</th>
-                 <th>From / To</th>
-                 <th style="text-align:right;">Amount</th>
-               </tr>
-             </thead>
-             <tbody id="transactionsTableBody">
-                 <!-- Populated via JS -->
-             </tbody>
-           </table>
-        </div>
-      </div>
-
     </div>
-  </main>
 
-  <!-- Create Client Modal -->
-  <div class="modal-overlay" id="createUserModal" style="display:none;">
-    <div class="modal-content" style="background: #1e293b; border: 1px solid #334155; width: 450px;">
-      <div class="modal-header" style="border-bottom: 1px solid #334155;">
-        <h3 id="modalTitle" style="color: white; margin: 0;">Create New Client</h3>
-        <button class="close-btn" style="color: #94a3b8;" onclick="closeModal()">×</button>
-      </div>
-      
-      <div id="createFormSection" style="padding: 24px; max-height: 70vh; overflow-y: auto;">
-        <form id="createUserForm">
-          <input type="hidden" id="newUserRole" value="CLIENT">
-          
-          <div class="form-group" style="margin-bottom: 16px;">
-             <label>Full Name</label>
-             <input type="text" id="newUserName" required placeholder="e.g. Rahul Kumar">
-          </div>
-          
-          <div class="form-group" style="margin-bottom: 16px;">
-             <label>Phone Number (10 digits)</label>
-             <input type="tel" id="newUserPhone" pattern="[0-9]{10}" maxlength="10" required title="Please enter exactly 10 digits" placeholder="9876543210">
-          </div>
-          
-          <div class="form-group" style="margin-bottom: 16px;">
-             <label>Starting Deposit (🪙)</label>
-             <p style="font-size:0.75rem; color:#f59e0b; margin-top:-4px; margin-bottom:8px;">* This will be deducted from your Agent Balance (🪙 <span id="modalAgentBalance">0</span>).</p>
-             <input type="number" id="newUserLimit" style="font-family: monospace;" value="1000" min="0" required>
-          </div>
-          
-          <div class="form-group" style="margin-bottom: 24px;">
-             <label>Agent Partnership Share (%)</label>
-             <p style="font-size:0.75rem; color:#94a3b8; margin-top:-4px; margin-bottom:8px;">Your percentage of this client's Risk/Profit (Max 100%).</p>
-             <input type="number" id="newUserShare" min="0" max="100" step="1" value="0">
-          </div>
+  </div><!-- /content -->
+</main>
 
-          <button type="submit" id="createUserSubmit" style="width: 100%; padding: 14px; background: #6366f1; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 1rem;">Create Client & Generate ID</button>
-          <div id="createError" style="color: #ef4444; margin-top: 12px; text-align: center; font-size: 0.9rem;"></div>
-        </form>
-      </div>
+<!-- ═══ MODALS ═══ -->
 
-      <!-- Success Section -->
-      <div id="successSection" style="display:none; padding: 32px; text-align: center;">
-        <div style="color: #10b981; font-size: 4rem; margin-bottom: 16px; line-height: 1;">✓</div>
-        <h4 style="color: white; font-size: 1.25rem; margin-bottom: 8px;">Client Successfully Created</h4>
-        <p style="font-size: 0.9rem; color: #94a3b8; margin-bottom: 24px;">Share these credentials via WhatsApp securely. They cannot be recovered.</p>
-        
-        <div style="background: #0f172a; padding: 24px; border-radius: 8px; border: 1px dashed #334155; font-family: monospace; font-size: 1.1rem; color: white;">
-          <div style="margin-bottom: 12px;"><span style="color: #94a3b8;">Login ID:</span> <span id="generatedLoginId" style="font-weight: bold; color: #10b981;">--</span></div>
-          <div><span style="color: #94a3b8;">Password:</span> <span id="generatedPassword" style="font-weight: bold; color: #10b981;">--</span></div>
+<!-- Create Client -->
+<div id="modalCreateClient" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="createClientTitle">New Client Account</div>
+      <button class="modal-close" onclick="closeModal('modalCreateClient')">×</button>
+    </div>
+    <div id="createClientForm">
+      <div class="modal-body">
+        <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:0.8rem;color:#a78bfa;">
+          💼 Client will be created under your account. Starting balance is deducted from <strong>your</strong> balance.
+          <br>Your balance: 🪙 <strong id="modalAgentBal">0.00</strong>
         </div>
-
-        <button style="margin-top: 24px; width: 100%; padding: 14px; background: #334155; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;" onclick="closeModal()">Done</button>
+        <div class="form-row">
+          <div class="form-group"><label>Full Name *</label><input type="text" class="form-input" id="newClientName" placeholder="Client full name"></div>
+          <div class="form-group"><label>Phone * (10 digits)</label><input type="number" class="form-input" id="newClientPhone" placeholder="9876543210"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Starting Balance (🪙)</label><input type="number" class="form-input" id="newClientBalance" value="5000" min="0"></div>
+          <div class="form-group"><label>Match Commission (%)</label><input type="number" class="form-input" id="newClientMatchComm" value="0" min="0" step="0.1"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Fancy Commission (%)</label><input type="number" class="form-input" id="newClientFancyComm" value="0" min="0" step="0.1"></div>
+          <div class="form-group" style="display:flex;align-items:flex-end;"><div id="createClientCommHint" style="font-size:0.75rem;color:#a78bfa;padding-bottom:2px;"></div></div>
+        </div>
+        <div class="form-group"><label>Notes (optional)</label><textarea class="form-input" id="newClientNotes" rows="2" placeholder="Internal notes…" style="resize:vertical;"></textarea></div>
+        <div id="createClientError" style="color:#ef4444;font-size:0.8rem;margin-top:4px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('modalCreateClient')">Cancel</button>
+        <button class="btn btn-primary" id="createClientBtn" onclick="submitCreateClient()">Generate Credentials</button>
+      </div>
+    </div>
+    <div id="createClientSuccess" style="display:none;" class="modal-body">
+      <div style="text-align:center;padding:16px 0;">
+        <div style="font-size:2.5rem;margin-bottom:10px;">✅</div>
+        <div style="font-size:1rem;font-weight:700;color:white;margin-bottom:4px;">Client Created!</div>
+        <div style="font-size:0.8rem;color:#64748b;">Share these credentials securely</div>
+      </div>
+      <div class="creds-box">
+        <div class="cred-label">Login ID</div>
+        <div class="cred-value" id="genClientId">—</div>
+        <div style="margin-top:12px;" class="cred-label">Password</div>
+        <div class="cred-value" id="genClientPw">—</div>
+      </div>
+      <div class="modal-footer" style="border-top:none;">
+        <button class="btn btn-ghost" onclick="closeModal('modalCreateClient')">Close</button>
+        <button class="btn btn-primary" onclick="openCreateClientModal()">+ Another Client</button>
       </div>
     </div>
   </div>
+</div>
 
-  <script src="auth.js"></script>
-  <script>
-    let currentUser = null;
-    let clientsData = [];
+<!-- Edit Client -->
+<div id="modalEditClient" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Client — <span id="editClientLoginId" class="mono"></span></div>
+      <button class="modal-close" onclick="closeModal('modalEditClient')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editClientId">
+      <div class="form-row">
+        <div class="form-group"><label>Full Name</label><input type="text" class="form-input" id="editClientName"></div>
+        <div class="form-group"><label>Phone</label><input type="number" class="form-input" id="editClientPhone"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Match Commission (%)</label><input type="number" class="form-input" id="editClientMatchComm" min="0" step="0.1"></div>
+        <div class="form-group"><label>Fancy Commission (%)</label><input type="number" class="form-input" id="editClientFancyComm" min="0" step="0.1"></div>
+      </div>
+      <div id="editClientCommHint" style="font-size:0.75rem;color:#a78bfa;margin-top:-10px;margin-bottom:10px;"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Credit Limit (🪙)</label><input type="number" class="form-input" id="editClientCreditLimit" min="0"></div>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select class="form-select" id="editClientStatus">
+          <option value="ACTIVE">Active</option>
+          <option value="SUSPENDED">Suspended</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Internal Notes</label><textarea class="form-input" id="editClientNotes" rows="2" placeholder="Internal notes…" style="resize:vertical;"></textarea></div>
+      <div id="editClientError" style="color:#ef4444;font-size:0.78rem;margin-top:4px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalEditClient')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEditClient()">Save Changes</button>
+    </div>
+  </div>
+</div>
 
-    window.addEventListener('DOMContentLoaded', async () => {
-      const authData = await AuthSystem.requireRole('AGENT');
-      if (!authData) return;
-      currentUser = authData.profile;
-      
-      document.getElementById('agentIdDisplay').textContent = currentUser.login_id;
-      document.getElementById('agentCreditDisplay').textContent = parseFloat(currentUser.balance || 0).toLocaleString();
-      document.getElementById('modalAgentBalance').textContent = parseFloat(currentUser.balance || 0).toLocaleString();
-      
-      await loadData();
+<!-- Funds (Deposit / Withdraw) -->
+<div id="modalFunds" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="fundsModalTitle">Manage Funds</div>
+      <button class="modal-close" onclick="closeModal('modalFunds')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="fundsClientId">
+      <input type="hidden" id="fundsType">
+      <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:0.8rem;color:#94a3b8;">Client: <strong id="fundsClientDisplay" style="color:white;font-family:'JetBrains Mono',monospace;">—</strong></div>
+        <div style="font-size:0.8rem;color:#94a3b8;margin-top:4px;" id="fundsClientBal">—</div>
+        <div style="font-size:0.78rem;color:#6366f1;margin-top:4px;">Your balance: 🪙 <span id="fundsAgentBal">—</span></div>
+      </div>
+      <div class="form-group">
+        <label id="fundsAmountLabel">Amount (🪙)</label>
+        <input type="number" class="form-input" id="fundsAmount" placeholder="0" min="1" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Note (optional)</label>
+        <input type="text" class="form-input" id="fundsNote" placeholder="Optional remark…">
+      </div>
+      <div id="fundsError" style="color:#ef4444;font-size:0.78rem;margin-top:4px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalFunds')">Cancel</button>
+      <button class="btn btn-primary" id="fundsSubmitBtn" onclick="submitFunds()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Client History -->
+<div id="modalHistory" class="modal-overlay">
+  <div class="modal modal-xl">
+    <div class="modal-header">
+      <div class="modal-title">Transaction History — <span id="historyClientId" class="mono"></span></div>
+      <button class="modal-close" onclick="closeModal('modalHistory')">×</button>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <table>
+        <thead><tr><th>Time</th><th>Type</th><th>From</th><th>To</th><th>Note</th><th style="text-align:right;">Amount</th></tr></thead>
+        <tbody id="historyTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+const sb = window.supabaseClient;
+let currentUser = null;
+let myClients   = [];
+let allTransactions = [];
+let allOrders   = [];
+let allEvents   = [];
+let allOutcomes = [];
+let allAnnouncements = [];
+let allMyIds    = [];
+let activeTab   = 'dashboard';
+let clientStatusFilter = 'ALL';
+let marketCatFilter    = 'ALL';
+
+// ── UTILS ──────────────────────────────────────────────────────────
+function sanitize(s) { const d = document.createElement('div'); d.textContent = String(s||''); return d.innerHTML; }
+function timeAgo(ts) {
+  if (!ts) return '<span style="color:#475569;font-size:0.7rem;">Never</span>';
+  const diff=Date.now()-new Date(ts).getTime(), min=Math.floor(diff/60000), hr=Math.floor(diff/3600000), day=Math.floor(diff/86400000);
+  const label=min<1?'Just now':min<60?`${min}m ago`:hr<24?`${hr}h ago`:`${day}d ago`;
+  const col=min<60?'#10b981':hr<24?'#f59e0b':'#64748b';
+  return `<span style="color:${col};font-size:0.7rem;">${label}</span>`;
+}
+function fmt(n,d=2){return parseFloat(n||0).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});}
+function showToast(msg, type='info') {
+  const el=document.createElement('div'); el.className=`toast ${type}`; el.textContent=msg;
+  document.getElementById('toast-container').prepend(el);
+  setTimeout(()=>el.remove(), 4000);
+}
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function setStatusFilter(btn, val) {
+  document.querySelectorAll('[data-status-filter]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); clientStatusFilter = val; renderClients();
+}
+function setCatFilter(btn, val) {
+  document.querySelectorAll('[data-cat]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); marketCatFilter = val; renderMarkets();
+}
+
+async function auditLog(action, {targetId=null,targetLoginId=null,amount=null,extra={}}={}) {
+  try {
+    await sb.from('audit_logs').insert({
+      actor_id: currentUser.id, actor_login_id: currentUser.login_id,
+      action, target_id: targetId, target_login_id: targetLoginId,
+      details: extra, amount, user_agent: navigator.userAgent.substring(0,200)
     });
+  } catch(e){}
+}
 
-    function switchTab(tabId) {
-      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      
-      document.getElementById('nav-' + tabId).classList.add('active');
-      document.getElementById('tab-' + tabId).classList.add('active');
-    }
+// ── INIT ───────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  const auth = await window.AuthSystem.requireRole('AGENT');
+  if (!auth) return;
+  currentUser = auth.profile;
 
-    async function loadData() {
-      // Agents only see THEIR clients (where parent_id matches their id)
-      const { data, error } = await supabase
-        .from('betting_users')
-        .select('*')
-        .eq('parent_id', currentUser.id)
-        .order('created_at', { ascending: false });
-        
-      if (error) {
-        console.error('Error fetching downline:', error);
-        return;
+  document.getElementById('sidebarId').textContent     = currentUser.login_id;
+  document.getElementById('agentIdDisplay').textContent = currentUser.login_id;
+  document.getElementById('dashDate').textContent = new Date().toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('authGate').style.display = 'none';
+
+  window.AuthSystem.startSessionTimeout(30);
+  window.AuthSystem.startStatusPolling(currentUser.id, 60);
+
+  // Refresh data and re-poll every 30s (does NOT reset idle timer)
+  await refreshData();
+  window._dataRefreshInterval = setInterval(refreshData, 30000);
+});
+
+// ── DATA LOADING ───────────────────────────────────────────────────
+async function refreshData() {
+  document.getElementById('lastRefreshed').textContent = 'Updated ' + new Date().toLocaleTimeString();
+
+  const [profileRes, clientsRes, evRes, ocRes, annRes] = await Promise.all([
+    sb.from('betting_users').select('*').eq('id', currentUser.id).single(),
+    sb.from('betting_users').select('*').eq('parent_id', currentUser.id).order('created_at',{ascending:false}),
+    sb.from('events').select('*').order('created_at',{ascending:false}),
+    sb.from('outcomes').select('*'),
+    sb.from('platform_announcements').select('*').order('created_at',{ascending:false})
+  ]);
+
+  if (profileRes.data) {
+    currentUser = {...currentUser, ...profileRes.data};
+    document.getElementById('sidebarBalance').textContent = fmt(currentUser.balance);
+  }
+  myClients    = clientsRes.data || [];
+  allEvents    = evRes.data || [];
+  allOutcomes  = ocRes.data || [];
+  allAnnouncements = annRes.data || [];
+  allMyIds     = [currentUser.id, ...myClients.map(c=>c.id)];
+
+  // Load transactions and orders in parallel (need allMyIds first)
+  const loads = [
+    sb.from('credit_transactions').select('*').in('sender_id', allMyIds).order('created_at',{ascending:false}).limit(500),
+    sb.from('credit_transactions').select('*').in('receiver_id', allMyIds).order('created_at',{ascending:false}).limit(500),
+  ];
+  if (myClients.length > 0) {
+    loads.push(sb.from('orders').select('*').in('user_id', myClients.map(c=>c.id)).order('created_at',{ascending:false}).limit(1000));
+  }
+  const results = await Promise.all(loads);
+  const txMap = {};
+  [...(results[0].data||[]), ...(results[1].data||[])].forEach(tx=>{ txMap[tx.id]=tx; });
+  allTransactions = Object.values(txMap).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  allOrders = (myClients.length > 0 ? results[2].data : null) || [];
+
+  renderActiveTab();
+}
+
+// ── TAB SWITCH ─────────────────────────────────────────────────────
+function switchTab(id) {
+  activeTab = id;
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active', el.dataset.tab===id));
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.toggle('active', el.id==='tab-'+id));
+  const titles = {dashboard:'Dashboard',clients:'My Clients',ledger:'Ledger',betlog:'Bet Log',pnl:'P&L Report',markets:'Live Markets',settlement:'Settlement',announcements:'Announcements',account:'My Account'};
+  document.getElementById('topbarTitle').textContent = titles[id] || id;
+  renderActiveTab();
+}
+function renderActiveTab() {
+  if (activeTab==='dashboard')     renderDashboard();
+  else if (activeTab==='clients')  renderClients();
+  else if (activeTab==='ledger')   renderLedger();
+  else if (activeTab==='betlog')   renderBetLog();
+  else if (activeTab==='pnl')      renderPnL();
+  else if (activeTab==='markets')  renderMarkets();
+  else if (activeTab==='settlement') renderSettlement();
+  else if (activeTab==='announcements') renderAnnouncements();
+  else if (activeTab==='account')  renderAccount();
+}
+
+// ── RENDER FUNCTIONS ───────────────────────────────────────────────
+function renderDashboard() {
+  const active = myClients.filter(c=>c.status!=='SUSPENDED');
+  const suspended = myClients.filter(c=>c.status==='SUSPENDED');
+  const deployed = myClients.reduce((s,c)=>s+parseFloat(c.balance||0),0);
+  const liveBets = allOrders.length;
+  const liveVol  = allOrders.reduce((s,o)=>s+parseFloat(o.total_cost||0),0);
+
+  document.getElementById('dashMyBal').textContent      = fmt(currentUser.balance);
+  document.getElementById('dashDeployed').textContent   = fmt(deployed,0);
+  document.getElementById('dashClients').textContent    = myClients.length;
+  document.getElementById('dashActiveClients').textContent = active.length;
+  document.getElementById('dashSuspendedClients').textContent = suspended.length;
+  document.getElementById('dashLiveBets').textContent   = liveBets;
+  document.getElementById('dashLiveVol').textContent    = fmt(liveVol,0);
+
+  const tbody = document.getElementById('dashClientsTable');
+  if (myClients.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4"><div class="empty"><div class="empty-icon">👥</div><div class="empty-text">No clients yet. Create your first client.</div></div></td></tr>';
+  } else {
+    tbody.innerHTML = myClients.slice(0,8).map(c => {
+      const bal = parseFloat(c.balance||0);
+      const clientOrders = allOrders.filter(o=>o.user_id===c.id);
+      const badge = c.status==='SUSPENDED'
+        ? `<span class="badge badge-suspended"><span class="status-dot"></span> Suspended</span>`
+        : `<span class="badge badge-active"><span class="status-dot"></span> Active</span>`;
+      return `<tr>
+        <td><div class="mono text-white" style="font-size:0.88rem;">${sanitize(c.login_id)}</div><div class="text-muted" style="font-size:0.72rem;">${sanitize(c.name||'—')}</div></td>
+        <td class="mono" style="color:${bal>0?'#10b981':'#94a3b8'};">🪙 ${fmt(bal)}</td>
+        <td>${badge}<br>${timeAgo(c.last_seen_at)}</td>
+        <td class="mono text-muted">${clientOrders.length}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const feed = document.getElementById('dashActivity');
+  const recent = allTransactions.slice(0,8);
+  if (recent.length===0) {
+    feed.innerHTML='<div class="empty" style="padding:20px;"><div class="empty-icon">📡</div><div class="empty-text">No activity yet</div></div>';
+  } else {
+    feed.innerHTML = recent.map(tx=>{
+      const sender   = [...myClients, currentUser].find(u=>u.id===tx.sender_id);
+      const receiver = [...myClients, currentUser].find(u=>u.id===tx.receiver_id);
+      const isDeposit = ['DEPOSIT','SETTLEMENT','VOID_REFUND'].includes(tx.transaction_type);
+      const col = isDeposit ? '#10b981' : '#ef4444';
+      const dotCls = isDeposit ? 'green' : 'red';
+      return `<div class="feed-item">
+        <div class="feed-dot ${dotCls}"></div>
+        <div class="feed-content">
+          <div class="feed-text"><strong>${tx.transaction_type}</strong> · ${sender?.login_id||'—'} → ${receiver?.login_id||'—'}</div>
+          <div class="feed-time">${new Date(tx.created_at).toLocaleString()}</div>
+        </div>
+        <div class="feed-amount" style="color:${col};">🪙${fmt(tx.amount,0)}</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function clientBadge(c) {
+  return c.status==='SUSPENDED'
+    ? `<span class="badge badge-suspended"><span class="status-dot"></span> Suspended</span>`
+    : `<span class="badge badge-active"><span class="status-dot"></span> Active</span>`;
+}
+
+function renderClients() {
+  const q = (document.getElementById('clientSearch')?.value||'').toLowerCase();
+  let clients = [...myClients];
+  if (clientStatusFilter !== 'ALL') clients = clients.filter(c=>c.status===clientStatusFilter);
+  if (q) clients = clients.filter(c=>(c.login_id+' '+(c.name||'')+' '+(c.phone||'')).toLowerCase().includes(q));
+
+  const tbody = document.getElementById('clientsTableBody');
+  if (clients.length===0) {
+    tbody.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No clients found</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = clients.map(c => {
+    const bal = parseFloat(c.balance||0);
+    const mC = c.match_commission ?? 0;
+    const fC = c.fancy_commission ?? 0;
+    const hasPw = !!c.initial_password;
+    return `<tr>
+      <td>
+        <div class="mono text-white" style="font-size:0.88rem;">${sanitize(c.login_id)}${c.notes?` <span title="${sanitize(c.notes)}" style="cursor:help;font-size:0.72rem;">📝</span>`:''}</div>
+        <div class="text-muted" style="font-size:0.72rem;">${sanitize(c.name||'—')} · ${sanitize(c.phone||'—')}</div>
+      </td>
+      <td class="mono" style="color:${bal>0?'#10b981':'#94a3b8'};">🪙 ${fmt(bal)}</td>
+      <td>${clientBadge(c)}<div style="margin-top:3px;">${timeAgo(c.last_seen_at)}</div></td>
+      <td style="font-size:0.78rem;"><span style="color:#e2e8f0;">M: ${mC}%</span><br><span style="color:#e2e8f0;">F: ${fC}%</span></td>
+      <td>
+        ${hasPw?`<div class="mono" style="font-size:0.72rem;color:#94a3b8;">${sanitize(c.login_id)}</div>
+          <div class="pw-row" style="font-size:0.72rem;">
+            <span class="mono" style="color:#f59e0b;" id="pw_${c.id}" data-visible="0">●●●●●●</span>
+            <button onclick="togglePwVis('${c.id}','${c.initial_password}')" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:0.75rem;padding:0 2px;">👁</button>
+          </div>`:'<span style="color:#475569;font-size:0.72rem;">—</span>'}
+      </td>
+      <td style="text-align:right;">
+        <div class="btn-group" style="justify-content:flex-end;flex-wrap:wrap;gap:4px;">
+          <button class="btn btn-ghost btn-sm" onclick="openClientHistory('${c.id}')">👁</button>
+          <button class="btn btn-ghost btn-sm" onclick="openEditClientModal('${c.id}')">Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetClientPassword('${c.id}','${c.login_id}')">🔑</button>
+          <button class="btn btn-success btn-sm" onclick="openFundsModal('${c.id}','DEPOSIT')">+ Coins</button>
+          <button class="btn btn-danger btn-sm" onclick="openFundsModal('${c.id}','WITHDRAWAL')">- Coins</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function togglePwVis(id, pw) {
+  const el = document.getElementById('pw_'+id);
+  if (!el) return;
+  const vis = el.dataset.visible==='1';
+  el.dataset.visible = vis?'0':'1';
+  el.textContent = vis ? '●●●●●●' : pw;
+}
+
+function renderLedger() {
+  const q = (document.getElementById('ledgerSearch')?.value||'').toLowerCase();
+
+  // Stats
+  const deployed = myClients.reduce((s,c)=>s+parseFloat(c.balance||0),0);
+  const clientIds = new Set(myClients.map(c=>c.id));
+  const issued = allTransactions
+    .filter(t=>t.transaction_type==='DEPOSIT' && clientIds.has(t.receiver_id) && t.sender_id===currentUser.id)
+    .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  const collected = allTransactions
+    .filter(t=>t.transaction_type==='WITHDRAWAL' && clientIds.has(t.sender_id) && t.receiver_id===currentUser.id)
+    .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+
+  document.getElementById('ledgerDeployed').textContent  = fmt(deployed);
+  document.getElementById('ledgerIssued').textContent    = fmt(issued);
+  document.getElementById('ledgerCollected').textContent = fmt(collected);
+
+  // Balance register
+  let clients = [...myClients];
+  if (q) clients = clients.filter(c=>(c.login_id+' '+(c.name||'')).toLowerCase().includes(q));
+  const regBody = document.getElementById('ledgerTableBody');
+  if (clients.length===0) {
+    regBody.innerHTML='<tr><td colspan="6"><div class="empty" style="padding:20px;"><div class="empty-icon">💰</div><div class="empty-text">No clients</div></div></td></tr>';
+  } else {
+    regBody.innerHTML = clients.map(c=>{
+      const bal = parseFloat(c.balance||0);
+      const cl  = Math.max(parseFloat(c.credit_limit||1),1);
+      const util = Math.min(100,(bal/cl)*100);
+      const cls = util>90?'util-crit':util>70?'util-warn':'util-ok';
+      const cIssued = allTransactions.filter(t=>t.transaction_type==='DEPOSIT'&&t.receiver_id===c.id&&t.sender_id===currentUser.id).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+      const cCollect = allTransactions.filter(t=>t.transaction_type==='WITHDRAWAL'&&t.sender_id===c.id&&t.receiver_id===currentUser.id).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+      return `<tr>
+        <td><div class="mono text-white">${sanitize(c.login_id)}</div><div class="text-muted" style="font-size:0.72rem;">${sanitize(c.name||'')}</div></td>
+        <td class="mono" style="color:${bal>0?'white':'#94a3b8'};">🪙 ${fmt(bal)}</td>
+        <td class="mono text-muted">🪙 ${fmt(cIssued)}</td>
+        <td class="mono text-muted">🪙 ${fmt(cCollect)}</td>
+        <td><div style="font-size:0.76rem;color:#94a3b8;">${util.toFixed(1)}%</div><div class="util-bar"><div class="util-fill ${cls}" style="width:${util}%;"></div></div></td>
+        <td style="text-align:right;">
+          <div class="btn-group" style="justify-content:flex-end;">
+            <button class="btn btn-success btn-sm" onclick="openFundsModal('${c.id}','DEPOSIT')">Deposit</button>
+            <button class="btn btn-danger btn-sm" onclick="openFundsModal('${c.id}','WITHDRAWAL')">Withdraw</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Transaction log
+  const txFrom  = document.getElementById('txFrom')?.value;
+  const txTo    = document.getElementById('txTo')?.value;
+  const txType  = document.getElementById('txTypeFilter')?.value;
+  const txUser  = (document.getElementById('txUserSearch')?.value||'').toLowerCase();
+  let txList = [...allTransactions];
+  if (txFrom) txList = txList.filter(t=>new Date(t.created_at)>=new Date(txFrom));
+  if (txTo)   txList = txList.filter(t=>new Date(t.created_at)<=new Date(txTo+'T23:59:59'));
+  if (txType) txList = txList.filter(t=>t.transaction_type===txType);
+  if (txUser) txList = txList.filter(t=>{
+    const s=[...myClients,currentUser].find(u=>u.id===t.sender_id);
+    const r=[...myClients,currentUser].find(u=>u.id===t.receiver_id);
+    return (s?.login_id||'').toLowerCase().includes(txUser)||(r?.login_id||'').toLowerCase().includes(txUser);
+  });
+  const txBody = document.getElementById('txLogBody');
+  if (txList.length===0) {
+    txBody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#475569;padding:20px;">No transactions match filters</td></tr>';
+  } else {
+    txBody.innerHTML = txList.slice(0,200).map(tx=>{
+      const sender  =[...myClients,currentUser].find(u=>u.id===tx.sender_id);
+      const receiver=[...myClients,currentUser].find(u=>u.id===tx.receiver_id);
+      const isCredit=['DEPOSIT','SETTLEMENT','VOID_REFUND'].includes(tx.transaction_type);
+      const col = isCredit?'#10b981':'#ef4444';
+      return `<tr>
+        <td class="text-muted" style="font-size:0.78rem;white-space:nowrap;">${new Date(tx.created_at).toLocaleString()}</td>
+        <td><span style="background:${col}20;color:${col};padding:2px 7px;border-radius:4px;font-size:0.7rem;font-weight:700;">${tx.transaction_type}</span></td>
+        <td class="mono" style="font-size:0.8rem;">${sender?.login_id||'Admin/System'}</td>
+        <td class="mono" style="font-size:0.8rem;">${receiver?.login_id||'Admin/System'}</td>
+        <td class="text-muted" style="font-size:0.78rem;">${tx.notes||'—'}</td>
+        <td class="mono" style="text-align:right;color:${col};font-weight:700;">🪙 ${fmt(tx.amount)}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+function downloadLedgerCSV() {
+  const rows = [['Date','Type','From','To','Note','Amount']];
+  allTransactions.forEach(tx=>{
+    const s=[...myClients,currentUser].find(u=>u.id===tx.sender_id);
+    const r=[...myClients,currentUser].find(u=>u.id===tx.receiver_id);
+    rows.push([new Date(tx.created_at).toLocaleString(),tx.transaction_type,s?.login_id||'—',r?.login_id||'—',tx.notes||'',tx.amount]);
+  });
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=`ledger_${currentUser.login_id}_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+}
+
+function renderBetLog() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayOrders = allOrders.filter(o=>new Date(o.created_at)>=today);
+  const totalVol = allOrders.reduce((s,o)=>s+parseFloat(o.total_cost||0),0);
+  const avgBet = allOrders.length ? totalVol/allOrders.length : 0;
+  document.getElementById('betToday').textContent  = todayOrders.length;
+  document.getElementById('betVolume').textContent = fmt(totalVol);
+  document.getElementById('betAvg').textContent    = fmt(avgBet);
+
+  // Populate dropdowns once
+  const clientSel = document.getElementById('betClientFilter');
+  if (clientSel && clientSel.options.length <= 1) {
+    myClients.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.login_id+' · '+(c.name||''); clientSel.appendChild(o); });
+  }
+  const evSel = document.getElementById('betEventFilter');
+  if (evSel && evSel.options.length <= 1) {
+    allEvents.forEach(ev=>{ const o=document.createElement('option'); o.value=ev.id; o.textContent=ev.title.substring(0,45); evSel.appendChild(o); });
+  }
+
+  const dateFrom  = document.getElementById('betFrom')?.value;
+  const dateTo    = document.getElementById('betTo')?.value;
+  const evFilter  = document.getElementById('betEventFilter')?.value;
+  const cliFilter = document.getElementById('betClientFilter')?.value;
+  let orders = [...allOrders];
+  if (dateFrom) orders=orders.filter(o=>new Date(o.created_at)>=new Date(dateFrom));
+  if (dateTo)   orders=orders.filter(o=>new Date(o.created_at)<=new Date(dateTo+'T23:59:59'));
+  if (cliFilter) orders=orders.filter(o=>o.user_id===cliFilter);
+  if (evFilter) { const ocIds=allOutcomes.filter(oc=>oc.event_id===evFilter).map(oc=>oc.id); orders=orders.filter(o=>ocIds.includes(o.outcome_id)); }
+
+  const tbody = document.getElementById('betlogTableBody');
+  if (orders.length===0) {
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#475569;padding:24px;">No bets match filters</td></tr>';
+    return;
+  }
+  tbody.innerHTML = orders.slice(0,200).map(o=>{
+    const client  = myClients.find(c=>c.id===o.user_id);
+    const outcome = allOutcomes.find(oc=>oc.id===o.outcome_id);
+    const event   = outcome ? allEvents.find(ev=>ev.id===outcome.event_id) : null;
+    const typeCol = o.order_type==='BUY'?'#3b82f6':'#ec4899';
+    return `<tr>
+      <td class="text-muted" style="font-size:0.78rem;white-space:nowrap;">${new Date(o.created_at).toLocaleString()}</td>
+      <td class="mono" style="font-size:0.82rem;">${sanitize(client?.login_id||'—')}</td>
+      <td><div style="font-size:0.8rem;color:white;">${event?.title||'—'}</div><div style="font-size:0.7rem;color:#64748b;">${outcome?.title||'—'}</div></td>
+      <td><span style="background:${typeCol}20;color:${typeCol};padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:700;">${o.order_type}</span></td>
+      <td class="mono">${parseFloat(o.shares||0).toLocaleString()}</td>
+      <td class="mono">${parseFloat(o.price_per_share||0)}¢</td>
+      <td class="mono" style="text-align:right;color:#e2e8f0;">🪙 ${fmt(o.total_cost)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPnL() {
+  const totalVol = allOrders.reduce((s,o)=>s+parseFloat(o.total_cost||0),0);
+  const mComm = parseFloat(currentUser.match_commission||0)/100;
+  const estComm = totalVol * mComm;
+
+  // Net received from admin (not from clients)
+  const clientIds = new Set(myClients.map(c=>c.id));
+  const netReceived = allTransactions
+    .filter(t=>t.receiver_id===currentUser.id && !clientIds.has(t.sender_id) && t.transaction_type==='DEPOSIT')
+    .reduce((s,t)=>s+parseFloat(t.amount||0),0)
+    - allTransactions
+    .filter(t=>t.sender_id===currentUser.id && !clientIds.has(t.receiver_id) && t.transaction_type==='WITHDRAWAL')
+    .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  const position = parseFloat(currentUser.balance||0) + myClients.reduce((s,c)=>s+parseFloat(c.balance||0),0);
+
+  document.getElementById('pnlVolume').textContent     = fmt(totalVol,0);
+  document.getElementById('pnlComm').textContent       = fmt(estComm);
+  document.getElementById('pnlNetReceived').textContent= fmt(netReceived);
+  document.getElementById('pnlPosition').textContent   = fmt(position);
+
+  // Per-client table
+  const tbody = document.getElementById('pnlClientTable');
+  if (myClients.length===0) {
+    tbody.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-icon">👥</div><div class="empty-text">No clients yet</div></div></td></tr>';
+  } else {
+    tbody.innerHTML = myClients.map(c=>{
+      const cOrders = allOrders.filter(o=>o.user_id===c.id);
+      const cVol  = cOrders.reduce((s,o)=>s+parseFloat(o.total_cost||0),0);
+      const cComm = cVol * mComm;
+      const cIssued = allTransactions.filter(t=>t.transaction_type==='DEPOSIT'&&t.receiver_id===c.id&&t.sender_id===currentUser.id).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+      const cCollect= allTransactions.filter(t=>t.transaction_type==='WITHDRAWAL'&&t.sender_id===c.id&&t.receiver_id===currentUser.id).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+      const netDeployed = cIssued - cCollect;
+      return `<tr>
+        <td><div class="mono text-white">${sanitize(c.login_id)}</div><div class="text-muted" style="font-size:0.72rem;">${sanitize(c.name||'')}</div></td>
+        <td class="mono text-muted">${cOrders.length}</td>
+        <td class="mono">🪙 ${fmt(cVol)}</td>
+        <td class="mono" style="color:#10b981;">🪙 ${fmt(cComm)}</td>
+        <td class="mono" style="color:${parseFloat(c.balance||0)>0?'#10b981':'#94a3b8'};">🪙 ${fmt(c.balance)}</td>
+        <td class="mono text-muted">🪙 ${fmt(netDeployed)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Settled markets
+  const settled = allEvents.filter(e=>e.is_resolved||e.status==='SETTLED'||e.status==='VOID');
+  const mBody = document.getElementById('pnlMarketsTable');
+  if (settled.length===0) {
+    mBody.innerHTML='<tr><td colspan="5"><div class="empty"><div class="empty-icon">🏏</div><div class="empty-text">No settled markets yet</div></div></td></tr>';
+  } else {
+    mBody.innerHTML = settled.map(ev=>{
+      const ocs = allOutcomes.filter(o=>o.event_id===ev.id);
+      const ocIds = ocs.map(o=>o.id);
+      const evOrders = allOrders.filter(o=>ocIds.includes(o.outcome_id));
+      const vol = evOrders.reduce((s,o)=>s+parseFloat(o.total_cost||0),0);
+      const winner = ev.winning_outcome || (ev.status==='VOID'?'VOID':'—');
+      const evStatus = ev.status==='VOID'?'<span class="badge badge-void">Voided</span>':'<span class="badge badge-settled">Settled</span>';
+      return `<tr>
+        <td class="text-white">${sanitize(ev.title)}</td>
+        <td>${evStatus}</td>
+        <td class="mono">🪙 ${fmt(vol)}</td>
+        <td style="font-size:0.8rem;color:#f59e0b;">${sanitize(winner)}</td>
+        <td class="mono text-muted">🪙 ${fmt(vol*mComm)}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+function renderMarkets() {
+  const q = (document.getElementById('marketSearch')?.value||'').toLowerCase();
+  let events = [...allEvents];
+  if (marketCatFilter!=='ALL') events=events.filter(e=>e.category===marketCatFilter);
+  if (q) events=events.filter(e=>e.title.toLowerCase().includes(q));
+
+  const tbody = document.getElementById('marketsTableBody');
+  if (events.length===0) {
+    tbody.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-icon">🏏</div><div class="empty-text">No markets found</div></div></td></tr>';
+    return;
+  }
+  const clientIds = new Set(myClients.map(c=>c.id));
+  tbody.innerHTML = events.map(ev=>{
+    const ocs = allOutcomes.filter(o=>o.event_id===ev.id);
+    const evOcIds = new Set(ocs.map(o=>o.id));
+    const myVol = allOrders.filter(o=>evOcIds.has(o.outcome_id)).reduce((s,o)=>s+parseFloat(o.total_cost||0),0);
+    const res = ev.resolution_date ? new Date(ev.resolution_date).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    const badge = ev.status==='SUSPENDED'?`<span class="badge badge-paused">⏸ Paused</span>`:ev.status==='SETTLED'?`<span class="badge badge-settled">✅ Settled</span>`:ev.status==='VOID'?`<span class="badge badge-void">🚫 Void</span>`:`<span class="badge badge-live"><span class="status-dot"></span> Live</span>`;
+    const priceChips = ocs.map(o=>`<span style="background:#0f172a;border:1px solid #334155;padding:2px 7px;border-radius:4px;font-size:0.7rem;margin-right:3px;">${sanitize(o.title)} <span style="color:#3b82f6;">${o.current_price}¢</span></span>`).join('');
+    return `<tr>
+      <td><div class="text-white">${sanitize(ev.title)}</div>${ev.sub_category?`<div class="text-muted" style="font-size:0.72rem;">${sanitize(ev.sub_category)}</div>`:''}</td>
+      <td class="text-muted">${sanitize(ev.category)}</td>
+      <td>${priceChips}</td>
+      <td>${badge}</td>
+      <td class="text-muted" style="font-size:0.78rem;">${res}</td>
+      <td class="mono" style="text-align:right;color:${myVol>0?'#a78bfa':'#475569'};">🪙 ${fmt(myVol,0)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderSettlement() {
+  const clientIds = new Set(myClients.map(c=>c.id));
+
+  // Agent ↔ admin directly
+  const received = allTransactions
+    .filter(t=>t.receiver_id===currentUser.id && !clientIds.has(t.sender_id) && t.transaction_type==='DEPOSIT')
+    .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  const returned = allTransactions
+    .filter(t=>t.sender_id===currentUser.id && !clientIds.has(t.receiver_id) && t.transaction_type==='WITHDRAWAL')
+    .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  // Formal cash settlements with admin (no chip movement — admin collected cash from agent)
+  const agentSettled = allTransactions
+    .filter(t=>t.sender_id===currentUser.id && t.transaction_type==='AGENT_SETTLEMENT')
+    .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+
+  // Admin → my clients directly (bypassing agent wallet)
+  // sender is not me and not one of my clients → must be admin or external
+  const directToClients = allTransactions
+    .filter(t=>t.transaction_type==='DEPOSIT' && clientIds.has(t.receiver_id) && t.sender_id!==currentUser.id && !clientIds.has(t.sender_id))
+    .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  // My clients → admin directly (client settled with admin, bypassing agent)
+  const directFromClients = allTransactions
+    .filter(t=>t.transaction_type==='WITHDRAWAL' && clientIds.has(t.sender_id) && t.receiver_id!==currentUser.id && !clientIds.has(t.receiver_id))
+    .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  // My clients → me (agent cash settlement — chips burned, not a transfer)
+  const agentCashSettled = allTransactions
+    .filter(t=>t.transaction_type==='WITHDRAWAL' && clientIds.has(t.sender_id) && t.receiver_id===currentUser.id)
+    .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+
+  const bookVal = parseFloat(currentUser.balance||0) + myClients.reduce((s,c)=>s+parseFloat(c.balance||0),0);
+  // Net in circulation = everything put in − everything collected/burned
+  const netCirc = (received + directToClients) - (returned + directFromClients) - agentCashSettled;
+  // Drift = actual book vs expected — now pure bet outcome, not polluted by direct transactions
+  const drift = bookVal - netCirc;
+  // Outstanding = chips admin put in − everything settled (chip returns + cash settlements + direct admin actions)
+  const outstanding = (received + directToClients) - (returned + directFromClients) - agentCashSettled - agentSettled;
+
+  document.getElementById('settleReceived').textContent = fmt(received);
+  document.getElementById('settleReturned').textContent = fmt(returned);
+  document.getElementById('settleStatCashSettled').textContent = fmt(agentSettled);
+  document.getElementById('settleBook').textContent     = fmt(bookVal);
+  const outStatEl = document.getElementById('settleOutstandingStat');
+  const outStatNote = document.getElementById('settleOutstandingStatNote');
+  outStatEl.textContent = fmt(Math.abs(outstanding));
+  outStatEl.style.color = outstanding > 0.01 ? '#ef4444' : outstanding < -0.01 ? '#10b981' : '#64748b';
+  outStatNote.textContent = outstanding > 0.01 ? 'You owe admin' : outstanding < -0.01 ? 'Admin owes you' : 'Fully settled';
+  document.getElementById('settleNetReceived').textContent = fmt(received);
+  document.getElementById('settleReturnedNet').textContent = fmt(returned);
+  const csRow = document.getElementById('settleCashSettledRow');
+  csRow.style.display = agentCashSettled > 0.01 ? 'flex' : 'none';
+  document.getElementById('settleCashSettled').textContent = `−🪙 ${fmt(agentCashSettled)}`;
+  document.getElementById('settleNetCirc').textContent  = fmt(netCirc);
+  document.getElementById('settleBookVal').textContent  = fmt(bookVal);
+  document.getElementById('settleAgentSettled').textContent = `🪙 ${fmt(agentSettled)}`;
+  const outstandingEl = document.getElementById('settleOutstanding');
+  outstandingEl.textContent = `🪙 ${fmt(Math.abs(outstanding))}`;
+  outstandingEl.style.color = outstanding > 0.01 ? '#ef4444' : outstanding < -0.01 ? '#10b981' : '#64748b';
+  outstandingEl.title = outstanding > 0.01 ? 'You owe admin' : outstanding < -0.01 ? 'Admin owes you' : 'Settled';
+
+  // Direct section — only show when non-zero
+  const hasDirectActivity = directToClients > 0.01 || directFromClients > 0.01;
+  document.getElementById('settleDirectSection').style.display = hasDirectActivity ? 'block' : 'none';
+  if (hasDirectActivity) {
+    const toRow   = document.getElementById('settleDirectToRow');
+    const fromRow = document.getElementById('settleDirectFromRow');
+    toRow.style.display   = directToClients > 0.01   ? 'flex' : 'none';
+    fromRow.style.display = directFromClients > 0.01 ? 'flex' : 'none';
+    document.getElementById('settleDirectTo').textContent   = `+🪙 ${fmt(directToClients)}`;
+    document.getElementById('settleDirectFrom').textContent = `−🪙 ${fmt(directFromClients)}`;
+  }
+
+  const driftEl = document.getElementById('settleDrift');
+  const noteEl  = document.getElementById('settleNote');
+  const labelEl = document.getElementById('settleStatusLabel');
+  if (Math.abs(drift) < 0.01) {
+    driftEl.textContent = '🪙 0.00'; driftEl.style.color = '#10b981';
+    labelEl.textContent = '✅ Balanced'; labelEl.style.color = '#10b981';
+    noteEl.textContent  = 'Your book is perfectly balanced with chips in circulation.';
+  } else if (drift > 0) {
+    driftEl.textContent = `+🪙 ${fmt(drift)}`; driftEl.style.color='#10b981';
+    labelEl.textContent = 'Book Up'; labelEl.style.color='#10b981';
+    noteEl.textContent  = `Your book has 🪙${fmt(drift)} more than chips in circulation — clients may have won on bets.`;
+  } else {
+    driftEl.textContent = `-🪙 ${fmt(Math.abs(drift))}`; driftEl.style.color='#ef4444';
+    labelEl.textContent = 'Book Down'; labelEl.style.color='#ef4444';
+    noteEl.textContent  = `Your book is down 🪙${fmt(Math.abs(drift))} — clients may have lost on bets.`;
+  }
+
+  // Settlement history — agent↔admin + direct admin↔client + agent cash settlements
+  const agentAdminTxs = allTransactions.filter(t=>
+    (t.sender_id===currentUser.id && !clientIds.has(t.receiver_id)) ||
+    (t.receiver_id===currentUser.id && !clientIds.has(t.sender_id))
+  );
+  const directTxIds = new Set();
+  const directTxs = allTransactions.filter(t=>{
+    const isDirectTo   = t.transaction_type==='DEPOSIT'    && clientIds.has(t.receiver_id) && t.sender_id!==currentUser.id && !clientIds.has(t.sender_id);
+    const isDirectFrom = t.transaction_type==='WITHDRAWAL' && clientIds.has(t.sender_id)   && t.receiver_id!==currentUser.id && !clientIds.has(t.receiver_id);
+    if (isDirectTo||isDirectFrom) directTxIds.add(t.id);
+    return isDirectTo||isDirectFrom;
+  });
+  // Agent cash settlements (agent withdrew from client = burned chips)
+  const cashSettleTxIds = new Set();
+  const cashSettleTxs = allTransactions.filter(t=>{
+    const isCash = t.transaction_type==='WITHDRAWAL' && clientIds.has(t.sender_id) && t.receiver_id===currentUser.id;
+    if (isCash) cashSettleTxIds.add(t.id);
+    return isCash;
+  });
+  const history = [...agentAdminTxs, ...directTxs, ...cashSettleTxs]
+    .filter((t,i,arr)=>arr.findIndex(x=>x.id===t.id)===i) // deduplicate
+    .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))
+    .slice(0,25);
+
+  const hBody = document.getElementById('settleHistoryBody');
+  if (history.length===0) {
+    hBody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#475569;padding:12px;">No admin transactions yet</td></tr>';
+  } else {
+    hBody.innerHTML = history.map(tx=>{
+      const isDirect   = directTxIds.has(tx.id);
+      const isCashSettle = cashSettleTxIds.has(tx.id);
+      // Direction: direct-to-client = chips IN, cash settle = chips OUT (burned), else normal
+      const isIn = isDirect ? tx.transaction_type==='DEPOSIT' : isCashSettle ? false : tx.receiver_id===currentUser.id;
+      const col = isIn?'#10b981':'#ef4444';
+      let typeLabel = tx.transaction_type;
+      if (isDirect) {
+        const client = myClients.find(c=>c.id===tx.receiver_id||c.id===tx.sender_id);
+        typeLabel = `ADMIN DIRECT → ${client?.login_id||'client'}`;
+      } else if (isCashSettle) {
+        const client = myClients.find(c=>c.id===tx.sender_id);
+        typeLabel = `CASH SETTLE ← ${client?.login_id||'client'}`;
+      } else if (tx.transaction_type==='AGENT_SETTLEMENT') {
+        typeLabel = 'CASH SETTLED → ADMIN';
+      } else if (tx.transaction_type==='DEPOSIT') {
+        typeLabel = 'RECEIVED FROM ADMIN';
+      } else if (tx.transaction_type==='WITHDRAWAL') {
+        typeLabel = 'RETURNED TO ADMIN';
       }
+      return `<tr>
+        <td style="padding:6px 10px;font-size:0.76rem;color:#94a3b8;">${new Date(tx.created_at).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+        <td style="padding:6px 10px;"><span style="font-size:0.7rem;font-weight:700;color:${col};">${typeLabel}</span></td>
+        <td style="padding:6px 10px;text-align:right;font-family:'JetBrains Mono',monospace;color:${col};">${isIn?'+':'−'}🪙 ${fmt(tx.amount)}</td>
+      </tr>`;
+    }).join('');
+  }
+}
 
-      clientsData = data;
-      
-      renderDashboard(clientsData);
-      renderClientsManagement(clientsData);
-      loadTransactions();
+function renderAnnouncements() {
+  const list = document.getElementById('announcementsList');
+  const active = allAnnouncements.filter(a=>a.is_active);
+  if (active.length===0) {
+    list.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">No announcements from admin</div></div>';
+    return;
+  }
+  list.innerHTML = active.map(a=>`
+    <div class="announcement-card">
+      <div class="announcement-msg">${sanitize(a.message)}</div>
+      <div class="announcement-meta">
+        <span class="badge badge-active">Live</span>
+        <span>${new Date(a.created_at).toLocaleString()}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAccount() {
+  const u = currentUser;
+  document.getElementById('accLoginId').textContent     = u.login_id||'—';
+  document.getElementById('accName').textContent        = u.name||'—';
+  document.getElementById('accPhone').textContent       = u.phone||'—';
+  document.getElementById('accBalance').textContent     = '🪙 '+fmt(u.balance);
+  document.getElementById('accSince').textContent       = u.created_at ? new Date(u.created_at).toLocaleDateString() : '—';
+  document.getElementById('accMatchComm').textContent   = (u.match_commission??0)+'%';
+  document.getElementById('accFancyComm').textContent   = (u.fancy_commission??0)+'%';
+  document.getElementById('accCreditLimit').textContent = '🪙 '+fmt(u.credit_limit||0);
+  const statusEl = document.getElementById('accStatus');
+  statusEl.innerHTML = u.status==='SUSPENDED'
+    ? '<span class="badge badge-suspended"><span class="status-dot"></span> Suspended</span>'
+    : '<span class="badge badge-active"><span class="status-dot"></span> Active</span>';
+}
+
+// ── ACTION FUNCTIONS ───────────────────────────────────────────────
+
+// ── CREATE CLIENT ──────────────────────────────────────────────────
+function openCreateClientModal() {
+  document.getElementById('createClientForm').style.display    = 'block';
+  document.getElementById('createClientSuccess').style.display = 'none';
+  document.getElementById('createClientError').textContent     = '';
+  document.getElementById('newClientName').value         = '';
+  document.getElementById('newClientPhone').value        = '';
+  document.getElementById('newClientBalance').value      = '5000';
+  document.getElementById('newClientMatchComm').value    = '0';
+  document.getElementById('newClientFancyComm').value    = '0';
+  document.getElementById('newClientMatchComm').max      = currentUser.match_commission ?? 100;
+  document.getElementById('newClientFancyComm').max      = currentUser.fancy_commission ?? 100;
+  document.getElementById('newClientNotes').value        = '';
+  document.getElementById('modalAgentBal').textContent   = fmt(currentUser.balance);
+  const maxMc = currentUser.match_commission ?? 0;
+  const maxFc = currentUser.fancy_commission ?? 0;
+  document.getElementById('createClientCommHint').textContent = `Max: Match ${maxMc}% · Fancy ${maxFc}% (your rates)`;
+  openModal('modalCreateClient');
+}
+
+async function submitCreateClient() {
+  const btn   = document.getElementById('createClientBtn');
+  const errEl = document.getElementById('createClientError');
+  errEl.textContent = ''; btn.disabled = true; btn.textContent = 'Creating…';
+  try {
+    // Platform-wide registration gate — check DB directly (not cached)
+    const { data: regCfg } = await sb.from('platform_config').select('value').eq('key','new_registrations').single();
+    if (regCfg?.value === 'false') {
+      throw new Error('New client registrations are currently disabled by the admin. Please contact your administrator.');
     }
 
-    function renderDashboard(clients) {
-       document.getElementById('dashClientsCount').textContent = clients.length;
-       const totalClientBal = clients.reduce((sum, u) => sum + parseFloat(u.balance || 0), 0);
-       document.getElementById('dashClientBal').textContent = totalClientBal.toLocaleString(undefined, {minimumFractionDigits: 2});
+    const name     = document.getElementById('newClientName').value.trim();
+    const phone    = document.getElementById('newClientPhone').value.trim();
+    const startBal = parseFloat(document.getElementById('newClientBalance').value) || 0;
+    const mComm    = parseFloat(document.getElementById('newClientMatchComm').value) || 0;
+    const fComm    = parseFloat(document.getElementById('newClientFancyComm').value) || 0;
+    const notes    = document.getElementById('newClientNotes').value.trim() || null;
 
-       const tbody = document.getElementById('topClientsTable');
-       tbody.innerHTML = '';
-       if (clients.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">No clients created yet</td></tr>';
-       } else {
-          // Sort clients by balance descending to find "VIP" clients
-          const topClients = [...clients].sort((a,b) => parseFloat(b.balance) - parseFloat(a.balance)).slice(0, 5);
-          topClients.forEach(client => {
-             tbody.innerHTML += `
-              <tr>
-                <td style="font-family:monospace; color:white;">${client.login_id}</td>
-                <td>${client.name || '-'}</td>
-                <td style="font-family:monospace;">🪙 ${parseFloat(client.balance).toLocaleString()}</td>
-                <td style="color:#94a3b8;">N/A</td>
-              </tr>
-             `;
-          });
-       }
-    }
+    if (!name || !phone) throw new Error('Name and phone are required.');
+    if (!/^\d{10}$/.test(phone)) throw new Error('Phone must be exactly 10 digits.');
 
-    function renderClientsManagement(clients) {
-      const tbody = document.getElementById('clientManagementTableBody');
-      tbody.innerHTML = '';
-      
-      clients.forEach(user => {
-        const statusBadge = user.status === 'ACTIVE' ? '<span style="color:#10b981;">● Active</span>' : '<span style="color:#ef4444;">● Suspended</span>';
-        const share = user.partnership_share !== undefined ? user.partnership_share : 0;
-                           
-        tbody.innerHTML += `
-          <tr>
-            <td style="font-family:monospace;font-weight:bold;color:white;">${user.login_id}
-              <div style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">${user.name || ''}</div>
-            </td>
-            <td>${statusBadge}</td>
-            <td style="color:#94a3b8;">${user.phone || '-'}</td>
-            <td style="color:#e2e8f0; font-weight:600;">${share}%</td>
-            <td style="font-family:monospace;color:white;font-weight:bold;">🪙 ${parseFloat(user.balance || 0).toLocaleString()}</td>
-            <td style="text-align:right;">
-               <button class="action-btn deposit" onclick="promptDeposit('${user.id}', '${user.login_id}')">Deposit</button>
-               <button class="action-btn withdraw" onclick="promptWithdraw('${user.id}', '${user.login_id}')">Withdraw</button>
-            </td>
-          </tr>
-        `;
+    // Commission caps: client rates must not exceed agent's own rates
+    if (mComm > (currentUser.match_commission ?? 0))
+      throw new Error(`Match commission ${mComm}% exceeds your rate of ${currentUser.match_commission ?? 0}%.`);
+    if (fComm > (currentUser.fancy_commission ?? 0))
+      throw new Error(`Fancy commission ${fComm}% exceeds your rate of ${currentUser.fancy_commission ?? 0}%.`);
+
+    // Duplicate phone check
+    const dup = myClients.find(c=>c.phone===phone);
+    if (dup) throw new Error(`Phone already registered to ${dup.login_id}.`);
+
+    // Check agent balance
+    const { data: agentRow } = await sb.from('betting_users').select('balance').eq('id', currentUser.id).single();
+    if (parseFloat(agentRow.balance) < startBal) throw new Error(`Insufficient balance. You have 🪙${fmt(agentRow.balance)}, trying to issue 🪙${fmt(startBal)}.`);
+
+    const loginId  = await window.AuthSystem.generateUniqueId('CLIENT');
+    const password = window.AuthSystem.generatePassword();
+    const email    = window.AuthSystem.toEmail(loginId);
+
+    // Temp no-persist client — prevent overwriting agent session on signUp
+    const _tmp = window.supabase.createClient(window._sbConfig.url, window._sbConfig.key, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+    const { data: authData, error: signupErr } = await _tmp.auth.signUp({ email, password });
+    if (signupErr) throw new Error(signupErr.message);
+
+    const { error: insertErr } = await sb.from('betting_users').insert({
+      id: authData.user.id,
+      login_id: loginId, role: 'CLIENT',
+      name, phone, notes,
+      parent_id: currentUser.id,
+      balance: startBal,
+      credit_limit: startBal,
+      match_commission: mComm,
+      fancy_commission: fComm,
+      status: 'ACTIVE',
+      initial_password: password
+    });
+    if (insertErr) throw new Error(insertErr.message);
+
+    if (startBal > 0) {
+      const newAgentBal = parseFloat(agentRow.balance) - startBal;
+      await sb.from('betting_users').update({ balance: newAgentBal }).eq('id', currentUser.id);
+      await sb.from('credit_transactions').insert({
+        sender_id: currentUser.id, receiver_id: authData.user.id,
+        amount: startBal, transaction_type: 'DEPOSIT',
+        notes: `Initial balance for new client ${loginId}`
       });
+      currentUser.balance = String(newAgentBal);
+      document.getElementById('sidebarBalance').textContent = fmt(newAgentBal);
     }
 
-    async function loadTransactions() {
-        const { data, error } = await supabase
-            .from('credit_transactions')
-            .select('*')
-            .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
-            .order('created_at', { ascending: false });
-            
-        if (error) return;
-        
-        const tbody = document.getElementById('transactionsTableBody');
-        tbody.innerHTML = '';
-        if(data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:24px;">No transactions recorded.</td></tr>';
-            return;
-        }
+    await auditLog('CREATE_CLIENT', { targetId: authData.user.id, targetLoginId: loginId, amount: startBal > 0 ? startBal : null, extra: { name, phone } });
 
-        data.forEach(tx => {
-            const date = new Date(tx.created_at).toLocaleString();
-            const isSending = tx.sender_id === currentUser.id;
-            const amountColor = isSending ? '#ef4444' : '#10b981';
-            const sign = isSending ? '-' : '+';
-            const label = isSending ? 'Sent out' : 'Received';
-            
-            tbody.innerHTML += `
-             <tr>
-               <td style="color:#94a3b8;font-size:0.85rem;">${date}</td>
-               <td><span style="background:#334155;padding:4px 8px;border-radius:4px;font-size:0.8rem;">${tx.transaction_type}</span></td>
-               <td>${label}</td>
-               <td style="text-align:right;font-family:monospace;font-weight:bold;color:${amountColor};">
-                  ${sign} 🪙${parseFloat(tx.amount).toLocaleString(undefined, {minimumFractionDigits:2})}
-               </td>
-             </tr>
-            `;
-        });
+    document.getElementById('genClientId').textContent = loginId;
+    document.getElementById('genClientPw').textContent = password;
+    document.getElementById('createClientForm').style.display    = 'none';
+    document.getElementById('createClientSuccess').style.display = 'block';
+    showToast(`Client ${loginId} created!`, 'success');
+    await refreshData();
+  } catch(err) {
+    errEl.textContent = err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Generate Credentials';
+  }
+}
+
+// ── EDIT CLIENT ────────────────────────────────────────────────────
+function openEditClientModal(clientId) {
+  const c = myClients.find(c=>c.id===clientId);
+  if (!c) return;
+  document.getElementById('editClientId').value            = clientId;
+  document.getElementById('editClientLoginId').textContent  = c.login_id;
+  document.getElementById('editClientName').value          = c.name || '';
+  document.getElementById('editClientPhone').value         = c.phone || '';
+  document.getElementById('editClientMatchComm').value     = c.match_commission ?? 0;
+  document.getElementById('editClientMatchComm').max       = currentUser.match_commission ?? 100;
+  document.getElementById('editClientFancyComm').value     = c.fancy_commission ?? 0;
+  document.getElementById('editClientFancyComm').max       = currentUser.fancy_commission ?? 100;
+  document.getElementById('editClientCreditLimit').value   = c.credit_limit ?? 0;
+  // If agent is suspended, force client to SUSPENDED and lock ACTIVE option
+  const agentSuspended = currentUser.status === 'SUSPENDED';
+  const clientStatusSel = document.getElementById('editClientStatus');
+  clientStatusSel.value = agentSuspended ? 'SUSPENDED' : (c.status || 'ACTIVE');
+  Array.from(clientStatusSel.options).forEach(opt => { opt.disabled = (agentSuspended && opt.value === 'ACTIVE'); });
+  document.getElementById('editClientNotes').value         = c.notes || '';
+  document.getElementById('editClientError').textContent   = '';
+  const maxMc = currentUser.match_commission ?? 0;
+  const maxFc = currentUser.fancy_commission ?? 0;
+  document.getElementById('editClientCommHint').textContent = `Max: Match ${maxMc}% · Fancy ${maxFc}% (your rates)`;
+  openModal('modalEditClient');
+}
+
+async function submitEditClient() {
+  const clientId = document.getElementById('editClientId').value;
+  const errEl    = document.getElementById('editClientError');
+  errEl.textContent = '';
+  try {
+    const oldClient = myClients.find(c=>c.id===clientId);
+    const newStatus = document.getElementById('editClientStatus').value;
+    const phone     = document.getElementById('editClientPhone').value.trim() || null;
+
+    // Block activation if agent is suspended
+    if (currentUser.status === 'SUSPENDED' && newStatus === 'ACTIVE')
+      throw new Error('Your account is suspended. Cannot activate clients.');
+
+    if (phone && phone !== oldClient?.phone) {
+      const dup = myClients.find(c=>c.phone===phone && c.id!==clientId);
+      if (dup) throw new Error(`Phone already registered to ${dup.login_id}.`);
     }
 
-    /* Actions */
-    async function promptDeposit(receiverId, loginId) {
-       const amtStr = prompt(`Enter amount to DEDUCT from your Agent balance and DEPOSIT to Client ${loginId}:`);
-       const amount = parseFloat(amtStr);
-       if(!amount || isNaN(amount) || amount <= 0) return;
+    const editMComm = parseFloat(document.getElementById('editClientMatchComm').value) || 0;
+    const editFComm = parseFloat(document.getElementById('editClientFancyComm').value) || 0;
+    if (editMComm > (currentUser.match_commission ?? 0))
+      throw new Error(`Match commission ${editMComm}% exceeds your rate of ${currentUser.match_commission ?? 0}%.`);
+    if (editFComm > (currentUser.fancy_commission ?? 0))
+      throw new Error(`Fancy commission ${editFComm}% exceeds your rate of ${currentUser.fancy_commission ?? 0}%.`);
 
-       if(amount > parseFloat(currentUser.balance)) {
-           alert("Insufficient Agent Balance! You only have 🪙" + currentUser.balance);
-           return;
-       }
+    const updates = {
+      name:             document.getElementById('editClientName').value.trim() || null,
+      phone,
+      match_commission: editMComm,
+      fancy_commission: editFComm,
+      credit_limit:     parseFloat(document.getElementById('editClientCreditLimit').value) || 0,
+      status:           newStatus,
+      notes:             document.getElementById('editClientNotes').value.trim() || null
+    };
 
-       // Perform transaction
-       const newAdminBal = parseFloat(currentUser.balance) - amount;
-       
-       // Update Agent
-       await supabase.from('betting_users').update({ balance: newAdminBal }).eq('id', currentUser.id);
-       
-       // Update Client
-       const client = clientsData.find(c => c.id === receiverId);
-       const newClientBal = parseFloat(client.balance || 0) + amount;
-       await supabase.from('betting_users').update({ balance: newClientBal }).eq('id', receiverId);
+    const { error } = await sb.from('betting_users').update(updates).eq('id', clientId);
+    if (error) throw new Error(error.message);
 
-       // Log
-       await supabase.from('credit_transactions').insert({
-            sender_id: currentUser.id,
-            receiver_id: receiverId,
-            amount: amount,
-            transaction_type: 'DEPOSIT'
-       });
+    const isSuspending = oldClient?.status==='ACTIVE' && newStatus==='SUSPENDED';
+    const isActivating  = oldClient?.status==='SUSPENDED' && newStatus==='ACTIVE';
+    const action = isSuspending ? 'SUSPEND_USER' : isActivating ? 'ACTIVATE_USER' : 'UPDATE_USER';
+    await auditLog(action, { targetId: clientId, targetLoginId: oldClient?.login_id, extra: { status: newStatus } });
 
-       alert("Deposit Successful!");
-       window.location.reload();
+    showToast('Client updated', 'success');
+    closeModal('modalEditClient');
+    await refreshData();
+  } catch(err) { errEl.textContent = err.message; }
+}
+
+// ── FUNDS ──────────────────────────────────────────────────────────
+function openFundsModal(clientId, type) {
+  const c = myClients.find(c=>c.id===clientId);
+  if (!c) return;
+  document.getElementById('fundsClientId').value    = clientId;
+  document.getElementById('fundsType').value        = type;
+  document.getElementById('fundsModalTitle').textContent = `${type==='DEPOSIT'?'+ Deposit':'- Withdraw'} — ${c.login_id}`;
+  document.getElementById('fundsClientDisplay').textContent = `${c.login_id} · ${c.name||''}`;
+  document.getElementById('fundsClientBal').textContent  = `Client balance: 🪙 ${fmt(c.balance)}`;
+  document.getElementById('fundsAgentBal').textContent   = fmt(currentUser.balance);
+  document.getElementById('fundsAmountLabel').textContent = type==='DEPOSIT' ? 'Amount to Deposit (🪙)' : 'Amount to Withdraw (🪙)';
+  document.getElementById('fundsAmount').value  = '';
+  document.getElementById('fundsNote').value    = '';
+  document.getElementById('fundsError').textContent = '';
+  const btn = document.getElementById('fundsSubmitBtn');
+  btn.className = type==='DEPOSIT' ? 'btn btn-success' : 'btn btn-danger';
+  btn.textContent = type==='DEPOSIT' ? 'Confirm Deposit' : 'Confirm Withdrawal';
+  openModal('modalFunds');
+}
+
+async function submitFunds() {
+  const clientId = document.getElementById('fundsClientId').value;
+  const type     = document.getElementById('fundsType').value;
+  const amount   = parseFloat(document.getElementById('fundsAmount').value);
+  const note     = document.getElementById('fundsNote').value.trim();
+  const errEl    = document.getElementById('fundsError');
+  errEl.textContent = '';
+  if (!amount || isNaN(amount) || amount <= 0) { errEl.textContent = 'Enter a valid amount.'; return; }
+
+  const client = myClients.find(c=>c.id===clientId);
+  if (!client) return;
+
+  try {
+    if (type === 'DEPOSIT') {
+      const { data: agentRow } = await sb.from('betting_users').select('balance').eq('id', currentUser.id).single();
+      if (parseFloat(agentRow.balance) < amount) throw new Error(`Insufficient balance. You have 🪙${fmt(agentRow.balance)}.`);
+      const newAgentBal  = parseFloat(agentRow.balance) - amount;
+      const newClientBal = parseFloat(client.balance||0) + amount;
+      // Insert transaction FIRST — if this fails, no balances are touched
+      const { error: txErr1 } = await sb.from('credit_transactions').insert({ sender_id: currentUser.id, receiver_id: clientId, amount, transaction_type: 'DEPOSIT', notes: note||null });
+      if (txErr1) throw new Error(txErr1.message);
+      await sb.from('betting_users').update({ balance: newAgentBal }).eq('id', currentUser.id);
+      await sb.from('betting_users').update({ balance: newClientBal }).eq('id', clientId);
+      currentUser.balance = String(newAgentBal);
+      await auditLog('DEPOSIT', { targetId: clientId, targetLoginId: client.login_id, amount, extra: { note: note||null } });
+      showToast(`Deposited 🪙${fmt(amount,0)} to ${client.login_id}`, 'success');
+    } else {
+      if (parseFloat(client.balance||0) < amount) throw new Error(`Insufficient client balance. ${client.login_id} has 🪙${fmt(client.balance)}.`);
+      const newClientBal = parseFloat(client.balance||0) - amount;
+      // Cash settlement — chips burned from client, agent balance unchanged
+      // Insert transaction FIRST — if this fails, no balances are touched
+      const { error: txErr2 } = await sb.from('credit_transactions').insert({ sender_id: clientId, receiver_id: currentUser.id, amount, transaction_type: 'WITHDRAWAL', notes: note||null });
+      if (txErr2) throw new Error(txErr2.message);
+      await sb.from('betting_users').update({ balance: newClientBal }).eq('id', clientId);
+      // Agent balance NOT updated — cash was physically given to client
+      await auditLog('WITHDRAWAL', { targetId: clientId, targetLoginId: client.login_id, amount, extra: { note: note||null } });
+      showToast(`Cash settled 🪙${fmt(amount,0)} with ${client.login_id} (chips burned)`, 'success');
     }
-    
-    async function promptWithdraw(senderId, loginId) {
-       const amtStr = prompt(`Enter amount to WITHDRAW from Client ${loginId} and return to your Agent balance:`);
-       const amount = parseFloat(amtStr);
-       if(!amount || isNaN(amount) || amount <= 0) return;
+    closeModal('modalFunds');
+    await refreshData();
+  } catch(err) { errEl.textContent = err.message; }
+}
 
-       const client = clientsData.find(c => c.id === senderId);
-       if(amount > parseFloat(client.balance || 0)) {
-           alert("Insufficient Client Balance!");
-           return;
-       }
+// ── CLIENT HISTORY ─────────────────────────────────────────────────
+async function openClientHistory(clientId) {
+  const c = myClients.find(c=>c.id===clientId);
+  if (!c) return;
+  document.getElementById('historyClientId').textContent = `${c.login_id} · ${c.name||''}`;
+  const tbody = document.getElementById('historyTableBody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:20px;">Loading…</td></tr>';
+  openModal('modalHistory');
 
-       const newClientBal = parseFloat(client.balance || 0) - amount;
-       const newAdminBal = parseFloat(currentUser.balance) + amount;
-       
-       await supabase.from('betting_users').update({ balance: newClientBal }).eq('id', senderId);
-       await supabase.from('betting_users').update({ balance: newAdminBal }).eq('id', currentUser.id);
+  const [txS, txR] = await Promise.all([
+    sb.from('credit_transactions').select('*').eq('sender_id', clientId).order('created_at',{ascending:false}).limit(200),
+    sb.from('credit_transactions').select('*').eq('receiver_id', clientId).order('created_at',{ascending:false}).limit(200)
+  ]);
+  const txMap = {};
+  [...(txS.data||[]), ...(txR.data||[])].forEach(t=>{ txMap[t.id]=t; });
+  const txList = Object.values(txMap).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 
-       await supabase.from('credit_transactions').insert({
-            sender_id: senderId,
-            receiver_id: currentUser.id,
-            amount: amount,
-            transaction_type: 'WITHDRAWAL'
-       });
+  if (txList.length===0) {
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#475569;padding:20px;">No transactions yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = txList.map(tx=>{
+    const sender  =[...myClients,currentUser].find(u=>u.id===tx.sender_id);
+    const receiver=[...myClients,currentUser].find(u=>u.id===tx.receiver_id);
+    const isCredit=['DEPOSIT','SETTLEMENT','VOID_REFUND'].includes(tx.transaction_type);
+    const col = isCredit?'#10b981':'#ef4444';
+    return `<tr>
+      <td class="text-muted" style="font-size:0.78rem;white-space:nowrap;">${new Date(tx.created_at).toLocaleString()}</td>
+      <td><span style="background:${col}20;color:${col};padding:2px 7px;border-radius:4px;font-size:0.7rem;font-weight:700;">${tx.transaction_type}</span></td>
+      <td class="mono" style="font-size:0.8rem;">${sender?.login_id||'—'}</td>
+      <td class="mono" style="font-size:0.8rem;">${receiver?.login_id||'—'}</td>
+      <td class="text-muted" style="font-size:0.78rem;">${tx.notes||'—'}</td>
+      <td class="mono" style="text-align:right;color:${col};font-weight:700;">🪙 ${fmt(tx.amount)}</td>
+    </tr>`;
+  }).join('');
+}
 
-       alert("Withdrawal Successful!");
-       window.location.reload();
-    }
+// ── RESET CLIENT PASSWORD ──────────────────────────────────────────
+async function resetClientPassword(clientId, loginId) {
+  if (!confirm(`Reset password for ${loginId}?\n\nA new 6-digit password will be generated.`)) return;
+  const client = myClients.find(c=>c.id===clientId);
+  if (!client?.initial_password) { showToast('Cannot reset: no stored password found. Contact admin.', 'error'); return; }
 
-    /* Modal & Creation Logic */
-    function openCreateModal(role) {
-      document.getElementById('createUserModal').style.display = 'flex';
-      document.getElementById('createFormSection').style.display = 'block';
-      document.getElementById('successSection').style.display = 'none';
-      document.getElementById('createUserForm').reset();
-      document.getElementById('createError').textContent = '';
-    }
-
-    function closeModal() {
-      document.getElementById('createUserModal').style.display = 'none';
-      window.location.reload();
-    }
-
-    document.getElementById('createUserForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('createUserSubmit');
-      const errorMsg = document.getElementById('createError');
-      
-      btn.textContent = 'Processing...';
-      btn.disabled = true;
-      errorMsg.textContent = '';
-      
-      try {
-        const role = 'CLIENT';
-        const name = document.getElementById('newUserName').value.trim();
-        const phone = document.getElementById('newUserPhone').value.trim();
-        const startBalance = parseFloat(document.getElementById('newUserLimit').value) || 0;
-        const share = parseFloat(document.getElementById('newUserShare').value) || 0;
-        
-        // 1. Check if agent has enough balance
-        if(startBalance > parseFloat(currentUser.balance)) {
-            throw new Error(`Insufficient funds. Your balance is 🪙${currentUser.balance}, but you are trying to issue 🪙${startBalance}.`);
-        }
-
-        const loginId = await AuthSystem.generateUniqueId(role);
-        const password = AuthSystem.generatePassword();
-        const email = AuthSystem.toEmail(loginId);
-        
-        const { data: authData, error: signupErr } = await supabase.auth.signUp({
-          email: email,
-          password: password,
-        });
-        
-        if (signupErr) throw new Error(signupErr.message);
-        
-        const { error: insertErr } = await supabase
-          .from('betting_users')
-          .insert({
-            id: authData.user.id,
-            login_id: loginId,
-            role: role,
-            name: name,
-            phone: phone,
-            parent_id: currentUser.id,
-            balance: startBalance,
-            credit_limit: startBalance,
-            partnership_share: share
-          });
-          
-        if (insertErr) throw new Error(insertErr.message); 
-
-        // 2. Deduct from Agent and Log
-        if (startBalance > 0) {
-            const newAdminBal = parseFloat(currentUser.balance) - startBalance;
-            await supabase.from('betting_users').update({ balance: newAdminBal }).eq('id', currentUser.id);
-            
-            await supabase.from('credit_transactions').insert({
-                sender_id: currentUser.id,
-                receiver_id: authData.user.id,
-                amount: startBalance,
-                transaction_type: 'DEPOSIT'
-            });
-        }
-
-        // Show Success
-        document.getElementById('createFormSection').style.display = 'none';
-        document.getElementById('successSection').style.display = 'block';
-        document.getElementById('generatedLoginId').textContent = loginId;
-        document.getElementById('generatedPassword').textContent = password;
-        
-      } catch(err) {
-        errorMsg.textContent = err.message;
-      } finally {
-        btn.textContent = 'Create Client & Generate ID';
-        btn.disabled = false;
-      }
+  const newPw = window.AuthSystem.generatePassword();
+  const email = window.AuthSystem.toEmail(loginId);
+  try {
+    const _tmp = window.supabase.createClient(window._sbConfig.url, window._sbConfig.key, {
+      auth: { persistSession: false, autoRefreshToken: false }
     });
+    const { error: signInErr } = await _tmp.auth.signInWithPassword({ email, password: client.initial_password });
+    if (signInErr) throw new Error('Cannot sign in as client to reset password. Ask admin to reset from admin panel.');
+    const { error: updateErr } = await _tmp.auth.updateUser({ password: newPw });
+    if (updateErr) throw new Error(updateErr.message);
+    await sb.from('betting_users').update({ initial_password: newPw }).eq('id', clientId);
+    await auditLog('RESET_PASSWORD', { targetId: clientId, targetLoginId: loginId });
+    alert(`✅ Password Reset\n\nClient: ${loginId}\nNew Password: ${newPw}\n\nShare securely.`);
+    await refreshData();
+  } catch(err) { showToast(err.message, 'error'); }
+}
 
-    document.querySelector('.logout-btn').addEventListener('click', () => {
-      AuthSystem.logout();
+// ── CHANGE MY PASSWORD ─────────────────────────────────────────────
+async function changePassword() {
+  const current = document.getElementById('pwCurrent').value;
+  const newPw   = document.getElementById('pwNew').value;
+  const confirm2= document.getElementById('pwConfirm').value;
+  const errEl   = document.getElementById('pwError');
+  errEl.textContent = '';
+
+  if (!current || !newPw || !confirm2) { errEl.textContent = 'All fields required.'; return; }
+  if (newPw.length < 6)  { errEl.textContent = 'New password must be at least 6 characters.'; return; }
+  if (newPw !== confirm2) { errEl.textContent = 'Passwords do not match.'; return; }
+
+  try {
+    const email = window.AuthSystem.toEmail(currentUser.login_id);
+    // Verify current password
+    const _verify = window.supabase.createClient(window._sbConfig.url, window._sbConfig.key, {
+      auth: { persistSession: false, autoRefreshToken: false }
     });
-  </script>
+    const { error: verifyErr } = await _verify.auth.signInWithPassword({ email, password: current });
+    if (verifyErr) { errEl.textContent = 'Current password is incorrect.'; return; }
+
+    const { error: updateErr } = await window.supabaseClient.auth.updateUser({ password: newPw });
+    if (updateErr) throw new Error(updateErr.message);
+    await sb.from('betting_users').update({ initial_password: newPw }).eq('id', currentUser.id);
+    await auditLog('RESET_PASSWORD', { extra: { self: true } });
+
+    document.getElementById('pwCurrent').value = '';
+    document.getElementById('pwNew').value     = '';
+    document.getElementById('pwConfirm').value = '';
+    showToast('Password updated successfully!', 'success');
+  } catch(err) { errEl.textContent = err.message; }
+}
+
+</script>
 </body>
 </html>
