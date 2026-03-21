@@ -3084,6 +3084,10 @@ async function toggleEventStatus(eventId, currentStatus) {
   const newStatus = currentStatus === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED';
   const { error } = await sb.from('events').update({ status: newStatus }).eq('id', eventId);
   if (error) { showToast('Failed to update event status', 'error'); return; }
+  // When manually pausing, stop the simulation so it can't auto-resume
+  if (newStatus === 'SUSPENDED') {
+    stopSim(eventId);
+  }
   await auditLog(newStatus === 'SUSPENDED' ? 'SUSPEND_MARKET' : 'RESUME_MARKET', {
     targetId: eventId, extra: { title: ev?.title }
   });
@@ -3515,6 +3519,7 @@ async function haltAllMarkets() {
   try {
     const { error } = await sb.from('events').update({ status: 'SUSPENDED' }).eq('status', 'ACTIVE').eq('is_resolved', false);
     if (error) throw new Error(error.message);
+    stopAllSims(); // kill all simulation cycles so they don't auto-resume
     await auditLog('EMERGENCY_HALT', { extra: { markets_halted: activeCount } });
     showToast(`🚨 Emergency halt: ${activeCount} market(s) suspended`, 'success');
     await refreshData();
