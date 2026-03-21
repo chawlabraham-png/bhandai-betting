@@ -455,6 +455,7 @@
     <div class="hist-filter-row">
       <div class="filter-pill active" id="hf-ALL"      onclick="setHistoryFilter('ALL',this)">All</div>
       <div class="filter-pill" id="hf-OPEN"     onclick="setHistoryFilter('OPEN',this)">Open</div>
+      <div class="filter-pill" id="hf-CLOSED"   onclick="setHistoryFilter('CLOSED',this)">Closed</div>
       <div class="filter-pill" id="hf-SETTLED"  onclick="setHistoryFilter('SETTLED',this)">Settled</div>
       <div class="filter-pill" id="hf-MATCH"    onclick="setHistoryFilter('MATCH',this)">Match</div>
       <div class="filter-pill" id="hf-FANCY"    onclick="setHistoryFilter('FANCY',this)">Fancy</div>
@@ -1281,9 +1282,24 @@ function updateBetSlipPreview() {
 
 async function confirmBet() {
   if (isSubmitting) return;
-  const stake  = parseFloat(document.getElementById('bsStakeInput').value);
-  const errEl  = document.getElementById('bsError');
+  const errEl = document.getElementById('bsError');
   errEl.textContent = '';
+
+  // ── FIRST: hard check — market must be ACTIVE right now ──────────
+  const liveEv = allEvents.find(e => e.id === bsState.eventId);
+  if (!liveEv || liveEv.status === 'SUSPENDED') {
+    errEl.textContent = '⏸ Market suspended — bet not placed.';
+    _showBetSlipSuspended();
+    shakeBetSlip();
+    return;
+  }
+  if (liveEv.status === 'SETTLED' || liveEv.status === 'VOID') {
+    errEl.textContent = '❌ Market is closed and no longer accepting bets.';
+    shakeBetSlip();
+    return;
+  }
+
+  const stake = parseFloat(document.getElementById('bsStakeInput').value);
 
   if (!stake || stake < 1) {
     errEl.textContent = 'Enter a valid stake (min 🪙 1).';
@@ -1761,7 +1777,8 @@ async function exitPosition(ordId) {
     currentProfile.balance = String(newBal);
 
     if (pct >= 1) {
-      await db.from('orders').update({ status: 'SETTLED' }).eq('id', ordId);
+      // Store actual exit value in shares so History can show booked P&L
+      await db.from('orders').update({ status: 'SETTLED', shares: parseFloat(exitVal.toFixed(4)) }).eq('id', ordId);
       await db.from('portfolio_positions').delete().eq('user_id', currentUser.id).eq('outcome_id', ord.outcome_id);
     } else {
       const rem = 1 - pct;
@@ -1793,37 +1810,59 @@ function setHistoryFilter(f, el) {
   renderHistoryTab();
 }
 
+// Determine settlement type for a SETTLED order:
+// 'self_exit'      — user closed the trade themselves (event still active)
+// 'fancy_settled'  — admin settled a fancy market (result_value present)
+// 'match_settled'  — admin settled a match market (event.status === SETTLED)
+// 'void'           — market was voided
+function _settlementType(ord) {
+  const ev = ord.events;
+  if (ord.status === 'CANCELLED') return 'void';
+  if (ord.status !== 'SETTLED')   return 'open';
+  if (ev?.market_type === 'FANCY' && ev?.result_value != null) return 'fancy_settled';
+  if (ev?.status === 'SETTLED') return 'match_settled';
+  return 'self_exit'; // event still active — user closed it via Exit Position
+}
+
 function renderHistoryTab() {
   const con = document.getElementById('historyContainer');
   let orders = [...myOrders];
 
-  if (historyFilter === 'OPEN')    orders = orders.filter(o => o.status === 'OPEN');
-  if (historyFilter === 'SETTLED') orders = orders.filter(o => o.status === 'SETTLED');
-  if (historyFilter === 'MATCH')   orders = orders.filter(o => o.events?.market_type !== 'FANCY');
-  if (historyFilter === 'FANCY')   orders = orders.filter(o => o.events?.market_type === 'FANCY');
+  if (historyFilter === 'OPEN')     orders = orders.filter(o => o.status === 'OPEN');
+  if (historyFilter === 'SETTLED')  orders = orders.filter(o => o.status === 'SETTLED');
+  if (historyFilter === 'CLOSED')   orders = orders.filter(o => _settlementType(o) === 'self_exit');
+  if (historyFilter === 'MATCH')    orders = orders.filter(o => o.events?.market_type !== 'FANCY');
+  if (historyFilter === 'FANCY')    orders = orders.filter(o => o.events?.market_type === 'FANCY');
 
   if (!orders.length) {
     con.innerHTML = `<div class="empty-state"><div class="es-icon">📋</div><div class="es-text">No bets here</div><div class="es-sub">Try a different filter</div></div>`;
     return;
   }
 
-  // Summary for settled
-  const settledOrds = orders.filter(o => o.status === 'SETTLED');
+  // ── Summary bar for settled/closed orders ─────────────────────
+  const closedOrds = orders.filter(o => o.status === 'SETTLED');
   let summaryHtml = '';
-  if (settledOrds.length) {
-    let totalReturn = 0;
-    settledOrds.forEach(o => {
-      const ev = o.events; const isFancy = ev?.market_type === 'FANCY';
-      if (isFancy && ev?.result_value != null) {
-        const line = parseFloat(o.line_at_bet||0), res = parseFloat(ev.result_value);
+  if (closedOrds.length) {
+    let totalStaked = 0, totalReturn = 0;
+    closedOrds.forEach(o => {
+      const stype = _settlementType(o);
+      const stake  = parseFloat(o.total_cost || 0);
+      const shares = parseFloat(o.shares || 0);
+      totalStaked += stake;
+      if (stype === 'self_exit') {
+        totalReturn += shares; // shares = exitVal stored on exit
+      } else if (stype === 'fancy_settled') {
+        const line = parseFloat(o.line_at_bet||0), res = parseFloat(o.events.result_value);
         const won = (o.bet_side==='YES' && res>=line) || (o.bet_side==='NO' && res<line);
-        if (won) totalReturn += parseFloat(o.shares||0);
+        if (won) totalReturn += shares;
+      } else if (stype === 'match_settled') {
+        // show potential payout if it appears they won (shares > stake)
+        if (shares > stake) totalReturn += shares;
       }
     });
-    const totalStaked = settledOrds.reduce((s,o) => s+parseFloat(o.total_cost||0),0);
     const netPnl = totalReturn - totalStaked;
     summaryHtml = `<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-size:0.7rem;color:#64748b;font-weight:700;">Showing ${settledOrds.length} settled · Staked 🪙${fmt(totalStaked,0)}</div>
+      <div style="font-size:0.7rem;color:#64748b;font-weight:700;">${closedOrds.length} closed · Staked 🪙${fmt(totalStaked,0)}</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;font-weight:800;color:${netPnl>=0?'#10b981':'#ef4444'}">${netPnl>=0?'+':''}🪙${fmt(Math.abs(netPnl),2)}</div>
     </div>`;
   }
@@ -1832,27 +1871,48 @@ function renderHistoryTab() {
     const ev      = ord.events;
     const oc      = ord.outcomes;
     const isFancy = ev?.market_type === 'FANCY';
-    const stake   = parseFloat(ord.total_cost||0);
-    const potPay  = parseFloat(ord.shares||0);
+    const stake   = parseFloat(ord.total_cost || 0);
+    const shares  = parseFloat(ord.shares || 0);
+    const stype   = _settlementType(ord);
 
     let resultClass = 'open', resultLabel = 'OPEN', payout = '';
+
     if (ord.status === 'OPEN') {
       resultClass = 'open'; resultLabel = 'OPEN';
-      payout = `<div class="hist-payout" style="color:#818cf8;">Pot 🪙${fmt(potPay,0)}</div>`;
-    } else if (ord.status === 'SETTLED') {
-      if (isFancy && ev?.result_value != null) {
-        const line = parseFloat(ord.line_at_bet||0), res = parseFloat(ev.result_value);
-        const won = (ord.bet_side==='YES' && res>=line) || (ord.bet_side==='NO' && res<line);
-        resultClass = won ? 'win' : 'lose';
-        resultLabel = won ? 'WON' : 'LOST';
-        payout = won
-          ? `<div class="hist-payout" style="color:#10b981;">+🪙${fmt(potPay,0)}</div>`
-          : `<div class="hist-payout" style="color:#ef4444;">−🪙${fmt(stake,0)}</div>`;
-      } else {
-        resultClass = 'open'; resultLabel = 'SETTLED';
-      }
-    } else if (ord.status === 'CANCELLED') {
+      payout = `<div class="hist-payout" style="color:#818cf8;">Pot 🪙${fmt(shares,0)}</div>`;
+
+    } else if (stype === 'self_exit') {
+      // User closed this trade — shares = actual exit value received
+      const bookedPnl = shares - stake;
+      resultClass = bookedPnl >= 0 ? 'win' : 'lose';
+      resultLabel = 'CLOSED';
+      payout = `<div class="hist-payout" style="color:${bookedPnl>=0?'#10b981':'#ef4444'};">
+        ${bookedPnl>=0?'+':''}🪙${fmt(bookedPnl,2)}
+        <div style="font-size:0.62rem;color:#64748b;margin-top:1px;">Rcvd 🪙${fmt(shares,2)}</div>
+      </div>`;
+
+    } else if (stype === 'fancy_settled') {
+      const line = parseFloat(ord.line_at_bet||0), res = parseFloat(ev.result_value);
+      const won = (ord.bet_side==='YES' && res>=line) || (ord.bet_side==='NO' && res<line);
+      resultClass = won ? 'win' : 'lose';
+      resultLabel = won ? 'WON' : 'LOST';
+      payout = won
+        ? `<div class="hist-payout" style="color:#10b981;">+🪙${fmt(shares,0)}</div>`
+        : `<div class="hist-payout" style="color:#ef4444;">−🪙${fmt(stake,0)}</div>`;
+
+    } else if (stype === 'match_settled') {
+      // Match market settled by admin — Win/Loss determined by credit_transactions (not loaded here)
+      // Best-effort: if payout > stake, likely winner
+      const approxWon = shares > stake + 0.01;
+      resultClass = approxWon ? 'win' : 'lose';
+      resultLabel = approxWon ? 'WON' : 'LOST';
+      payout = approxWon
+        ? `<div class="hist-payout" style="color:#10b981;">+🪙${fmt(shares-stake,2)}</div>`
+        : `<div class="hist-payout" style="color:#ef4444;">−🪙${fmt(stake,0)}</div>`;
+
+    } else if (stype === 'void') {
       resultClass = 'void'; resultLabel = 'VOID';
+      payout = `<div class="hist-payout" style="color:#64748b;">Refunded 🪙${fmt(stake,0)}</div>`;
     }
 
     const date = ord.created_at
@@ -1866,6 +1926,7 @@ function renderHistoryTab() {
         <div class="hist-meta">
           <span class="result-pill ${resultClass}">${resultLabel}</span>
           <span style="font-size:0.62rem;background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;color:#64748b;font-weight:600;">${ord.bet_side||'BACK'}</span>
+          ${stype==='self_exit'?`<span style="font-size:0.6rem;color:#64748b;">@ ${parseFloat(ord.price_per_share||0).toFixed(2)}</span>`:''}
           <span class="hist-date">${date}</span>
         </div>
       </div>
