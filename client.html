@@ -1645,7 +1645,10 @@ function _getLiveRate(ord) {
   if (isLK) {
     const evData = allEvents.find(e => e.id === ord.event_id);
     const lagaiRate = parseFloat(evData?.lagai_rate || bp);
-    return ord.bet_side === 'KHAI'
+    // Exit rate is always the OPPOSITE side — that's where the company rake lives:
+    // LAGAI exits at KHAI rate (lagaiRate + 0.05)
+    // KHAI  exits at LAGAI rate
+    return ord.bet_side === 'LAGAI'
       ? parseFloat((lagaiRate + 0.05).toFixed(2))
       : lagaiRate;
   } else {
@@ -1654,14 +1657,19 @@ function _getLiveRate(ord) {
   }
 }
 
-// P&L for an open order at current market rate
-// exitVal = stake × (entryRate / currentRate)  [stock-equivalent: buy at X, current Y]
+// P&L for an open order at current market rate (exit-rate model)
+// LAGAI: exitVal = stake × (entryLagai / curKhai)   — value rises when lagai falls
+// KHAI:  exitVal = stake × (curLagai  / entryKhai)  — value rises when lagai rises (INVERTED)
+// Back/Lay: exitVal = stake × (entry / current)
 // pnl = exitVal − stake  (positive = profit, negative = loss)
 function _calcOrderPnl(ord) {
   const stake = parseFloat(ord.total_cost || 0);
   const entryRate = parseFloat(ord.price_per_share || 1);
   const curRate = _getLiveRate(ord);
-  const exitVal = stake * (entryRate / curRate);
+  // KHAI direction is inverted: gaining value when opposing rate rises
+  const exitVal = ord.bet_side === 'KHAI'
+    ? stake * (curRate / entryRate)
+    : stake * (entryRate / curRate);
   return { stake, entryRate, curRate, exitVal, pnl: exitVal - stake };
 }
 
