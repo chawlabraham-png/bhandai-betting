@@ -917,6 +917,13 @@ function renderMatchGroup(ev) {
   const initB = teamB ? teamB.slice(0,2).toUpperCase() : 'B2';
   const cA = _avatarColor(teamA), cB = _avatarColor(teamB || 'B2');
 
+  // Compute outcomes + team labels at top level (needed by ebook bar)
+  const ocs      = allOutcomes.filter(o => o.event_id === ev.id);
+  const oc0      = ocs[0];
+  const oc1      = ocs[1];
+  const favTeam  = ev.rate_team || oc0?.title || teamA;
+  const otherTeam = oc1?.title || teamB || 'Team 2';
+
   const openBetsHere = myOrders.filter(o => o.event_id === ev.id && o.status === 'OPEN').length;
 
   const header = `
@@ -939,6 +946,29 @@ function renderMatchGroup(ev) {
     <div class="mg-chevron">${isExpanded ? '▴' : '▾'}</div>
   </div>`;
 
+  // Event book bar — always visible when user has open bets on this event.
+  // Uses IDs so _refreshLivePnl() can update values without re-render.
+  let ebookBar = '';
+  if (openBetsHere) {
+    const book = calcEventBook(ev.id);
+    if (book) {
+      const fwC = book.favWins  >= 0 ? '#10b981' : '#ef4444';
+      const flC = book.favLoses >= 0 ? '#10b981' : '#ef4444';
+      ebookBar = `
+  <div class="event-book-bar" id="ebook_${ev.id}">
+    <div class="ebook-item">
+      <span class="ebook-label">If ${sanitize(favTeam)} wins</span>
+      <span class="ebook-val" id="ebook_fw_${ev.id}" style="color:${fwC};">${book.favWins>=0?'+':''}🪙${fmt(Math.abs(book.favWins),0)}</span>
+    </div>
+    <div class="ebook-divider"></div>
+    <div class="ebook-item">
+      <span class="ebook-label">If ${sanitize(otherTeam)} wins</span>
+      <span class="ebook-val" id="ebook_fl_${ev.id}" style="color:${flC};">${book.favLoses>=0?'+':''}🪙${fmt(Math.abs(book.favLoses),0)}</span>
+    </div>
+  </div>`;
+    }
+  }
+
   let body = '';
   if (isExpanded) {
     if (susp) {
@@ -950,13 +980,8 @@ function renderMatchGroup(ev) {
         </div>
       </div>`;
     } else {
-      const ocs = allOutcomes.filter(o => o.event_id === ev.id);
-      const oc0 = ocs[0];
-      const oc1 = ocs[1];
       const lagai = parseFloat(ev.lagai_rate ?? 0.50);
       const khai  = parseFloat((lagai + 0.05).toFixed(2));
-      const favTeam   = ev.rate_team || oc0?.title || teamA;
-      const otherTeam = oc1?.title || teamB || 'Team 2';
 
       body = `
       <div class="match-group-body">
@@ -978,23 +1003,12 @@ function renderMatchGroup(ev) {
             <div class="lk-rate">${khai.toFixed(2)}</div>
             <div class="lk-team">${sanitize(otherTeam)}</div>
           </div>
-        </div>
-        ${(() => {
-          const book = calcEventBook(ev.id);
-          if (!book) return '';
-          const fwC = book.favWins >= 0 ? '#10b981' : '#ef4444';
-          const flC = book.favLoses >= 0 ? '#10b981' : '#ef4444';
-          return `<div class="event-book-bar">
-            <div class="ebook-item"><span class="ebook-label">If ${sanitize(favTeam)} wins</span><span class="ebook-val" style="color:${fwC};">${book.favWins>=0?'+':''}🪙${fmt(Math.abs(book.favWins),0)}</span></div>
-            <div class="ebook-divider"></div>
-            <div class="ebook-item"><span class="ebook-label">If ${sanitize(otherTeam)} wins</span><span class="ebook-val" style="color:${flC};">${book.favLoses>=0?'+':''}🪙${fmt(Math.abs(book.favLoses),0)}</span></div>
-          </div>`;
-        })()}` : `<div style="padding:10px 14px 14px;text-align:center;color:#475569;font-size:0.78rem;">⚙️ Rates loading</div>`}
+        </div>` : `<div style="padding:10px 14px 14px;text-align:center;color:#475569;font-size:0.78rem;">⚙️ Rates loading</div>`}
       </div>`;
     }
   }
 
-  return `<div class="match-group${susp?' suspended':''}${isExpanded?' expanded':''}" id="mc_${ev.id}">${header}${body}</div>`;
+  return `<div class="match-group${susp?' suspended':''}${isExpanded?' expanded':''}" id="mc_${ev.id}">${header}${ebookBar}${body}</div>`;
 }
 
 function toggleMatchGroup(eventId) {
@@ -1626,7 +1640,7 @@ function renderPosCard(ord) {
           oninput="updateExitPreview('${ord.id}')">
       </div>
       <div class="exit-preview" id="exitPreview_${ord.id}">
-        <div class="exit-prev-item"><div class="ep-lbl">Exiting</div><div class="ep-val" id="epExit_${ord.id}">—</div></div>
+        <div class="exit-prev-item"><div class="ep-lbl">Win Position</div><div class="ep-val" id="epExit_${ord.id}">—</div></div>
         <div class="exit-prev-item"><div class="ep-lbl">Exit Value</div><div class="ep-val green" id="epVal_${ord.id}">—</div></div>
         <div class="exit-prev-item"><div class="ep-lbl">P&amp;L</div><div class="ep-val" id="epPnl_${ord.id}">—</div></div>
       </div>
@@ -1728,6 +1742,23 @@ function _refreshLivePnl() {
     if (curRateEl) curRateEl.textContent = `${_getLiveRate(o).toFixed(2)}×`;
     updateExitPreview(o.id);
   });
+  // Update event book bars in Markets tab (always-visible position bars below match headers)
+  const eventIds = [...new Set(openOrds.map(o => o.event_id))];
+  eventIds.forEach(eid => {
+    const fwEl = document.getElementById('ebook_fw_' + eid);
+    const flEl = document.getElementById('ebook_fl_' + eid);
+    if (!fwEl && !flEl) return; // bar not rendered
+    const book = calcEventBook(eid);
+    if (!book) return;
+    if (fwEl) {
+      fwEl.textContent = `${book.favWins>=0?'+':''}🪙${fmt(Math.abs(book.favWins),0)}`;
+      fwEl.style.color = book.favWins >= 0 ? '#10b981' : '#ef4444';
+    }
+    if (flEl) {
+      flEl.textContent = `${book.favLoses>=0?'+':''}🪙${fmt(Math.abs(book.favLoses),0)}`;
+      flEl.style.color = book.favLoses >= 0 ? '#10b981' : '#ef4444';
+    }
+  });
 }
 
 function toggleExpand(ordId, canExpand) {
@@ -1757,9 +1788,14 @@ function updateExitPreview(ordId) {
     ? exitStake * (curRate / entryRate)
     : exitStake * (entryRate / curRate);
   const pnl       = exitVal - exitStake;
+  // Show profit position (what the bet would win), not raw stake
+  // LAGAI: win = stake × rate;  KHAI: win = stake / rate
+  const winPosition = ord.bet_side === 'KHAI'
+    ? (stake / entryRate) * pct
+    : (stake * entryRate) * pct;
 
   document.getElementById('exitPct_'   + ordId).textContent = `${Math.round(pct * 100)}%`;
-  document.getElementById('epExit_'    + ordId).textContent = `🪙${fmt(exitStake, 0)}`;
+  document.getElementById('epExit_'    + ordId).textContent = `🪙${fmt(winPosition, 0)}`;
   document.getElementById('epVal_'     + ordId).textContent = `🪙${fmt(exitVal, 2)}`;
   const pnlEl = document.getElementById('epPnl_' + ordId);
   pnlEl.textContent = `${pnl >= 0 ? '+' : ''}🪙${fmt(Math.abs(pnl), 2)}`;
