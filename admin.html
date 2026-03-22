@@ -3433,12 +3433,11 @@ function startSim(eventId) {
   const ev = allEvents.find(e => e.id === eventId);
   if (!ev) return;
 
-  const state = { phase: 'ACTIVE' };
+  const state = { phase: 'ACTIVE', lastStep: 0 };
   simIntervals[eventId] = state;
 
-  // Price tick: 30s for match (lagai/khai), 5s for fancy (moving line)
-  const tickMs = ev.market_type === 'FANCY' ? SIM_TICK_MS : 30000;
-  state.priceTimer = setInterval(() => runSimTick(eventId), tickMs);
+  // Price tick: 5s for both match and fancy
+  state.priceTimer = setInterval(() => runSimTick(eventId), SIM_TICK_MS);
 
   // Active/Suspended cycle
   function scheduleCycle() {
@@ -3484,10 +3483,14 @@ async function runSimTick(eventId) {
     if (evIdx >= 0) allEvents[evIdx].line_value = newLine;
     renderMarkets();
   } else {
-    // MATCH market: random walk on lagai_rate (0.05–0.90), khai = lagai + 0.05
+    // MATCH market: momentum random walk on lagai_rate (0.01–0.89)
+    const state   = simIntervals[eventId];
     const curLagai = parseFloat(ev.lagai_rate ?? 0.50);
-    const step  = parseFloat(((Math.random() - 0.5) * 0.10).toFixed(2)); // ±0.05 max
-    const newLagai = parseFloat(Math.min(0.90, Math.max(0.05, curLagai + step)).toFixed(2));
+    // Base step ±0.15, plus 40% carry-over from previous step (momentum)
+    const baseStep = (Math.random() - 0.5) * 0.30;
+    const step     = parseFloat((baseStep + (state?.lastStep || 0) * 0.4).toFixed(2));
+    if (state) state.lastStep = step;
+    const newLagai = parseFloat(Math.min(0.89, Math.max(0.01, curLagai + step)).toFixed(2));
 
     await sb.from('events').update({ lagai_rate: newLagai }).eq('id', eventId);
     const evIdx = allEvents.findIndex(e => e.id === eventId);
