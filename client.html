@@ -1674,20 +1674,25 @@ function _calcOrderPnl(ord) {
 }
 
 // Net P&L for two outcome scenarios on a match event
-// Returns { teamAWins, teamALoses } where each is the user's net P&L
+// Returns { favWins, favLoses } where each is the user's net P&L for that scenario
 function calcEventBook(eventId) {
   const eventOrds = myOrders.filter(o => o.event_id === eventId && o.status === 'OPEN');
   if (!eventOrds.length) return null;
   let favWins = 0, favLoses = 0;
   eventOrds.forEach(o => {
-    const profit = parseFloat(o.shares || 0) - parseFloat(o.total_cost || 0);
-    const stake  = parseFloat(o.total_cost || 0);
+    const stake = parseFloat(o.total_cost || 0);
+    const rate  = parseFloat(o.price_per_share || 1);
+    // IMPORTANT: recalculate from original rate — do NOT use (shares - stake).
+    // When position netting hedges, shares gets reduced, making profit appear 0.
+    const profit = o.bet_side === 'LAGAI' ? stake * rate
+                 : o.bet_side === 'KHAI'  ? stake / rate
+                 : 0;
     if (o.bet_side === 'LAGAI') {
       favWins  += profit;   // LAGAI: wins if fav team wins
       favLoses -= stake;    // LAGAI: loses if fav team loses
     } else if (o.bet_side === 'KHAI') {
-      favWins  -= stake;    // KHAI: loses if fav team wins
-      favLoses += profit;   // KHAI: wins if fav team loses
+      favWins  -= stake;    // KHAI (lay): costs stake if fav team wins
+      favLoses += profit;   // KHAI (lay): profits if fav team loses
     }
   });
   return { favWins, favLoses, count: eventOrds.length };
@@ -1747,7 +1752,10 @@ function updateExitPreview(ordId) {
   const entryRate = parseFloat(ord.price_per_share || 1);
   const curRate   = _getLiveRate(ord);
   const exitStake = stake * pct;
-  const exitVal   = exitStake * (entryRate / curRate);
+  // KHAI direction is inverted: value rises when opposing rate rises
+  const exitVal   = ord.bet_side === 'KHAI'
+    ? exitStake * (curRate / entryRate)
+    : exitStake * (entryRate / curRate);
   const pnl       = exitVal - exitStake;
 
   document.getElementById('exitPct_'   + ordId).textContent = `${Math.round(pct * 100)}%`;
@@ -1768,7 +1776,10 @@ async function exitPosition(ordId) {
   const originalBP    = parseFloat(ord.price_per_share || 1);
   const curBP         = _getLiveRate(ord);
   const exitStake     = originalStake * pct;
-  const exitVal       = exitStake * (originalBP / curBP);
+  // KHAI direction inverted: value rises when opposing rate rises
+  const exitVal       = ord.bet_side === 'KHAI'
+    ? exitStake * (curBP / originalBP)
+    : exitStake * (originalBP / curBP);
   const pnl           = exitVal - exitStake;
 
   if (!confirm(
