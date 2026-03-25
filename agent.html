@@ -443,24 +443,24 @@
       </div>
       <div class="stats-grid stats-grid-4">
         <div class="stat-card accent-purple">
-          <div class="stat-label">Total Client Volume</div>
-          <div class="stat-value purple">🪙 <span id="pnlVolume">0</span></div>
-          <div class="stat-change">All client bets</div>
+          <div class="stat-label">Total Client P&amp;L</div>
+          <div class="stat-value purple"><span id="pnlVolume">0</span></div>
+          <div class="stat-change">Across settled markets</div>
         </div>
         <div class="stat-card accent-green">
-          <div class="stat-label">Est. Commission</div>
-          <div class="stat-value green">🪙 <span id="pnlComm">0</span></div>
-          <div class="stat-change">At match comm rate</div>
+          <div class="stat-label">Commission Given</div>
+          <div class="stat-value green"><span id="pnlComm">0</span></div>
+          <div class="stat-change">Your share of commission cost</div>
         </div>
         <div class="stat-card accent-blue">
-          <div class="stat-label">Net Chips Received</div>
-          <div class="stat-value blue">🪙 <span id="pnlNetReceived">0</span></div>
-          <div class="stat-change">From admin (net)</div>
+          <div class="stat-label">Agent P&amp;L Share</div>
+          <div class="stat-value blue"><span id="pnlNetReceived">0</span></div>
+          <div class="stat-change">Partnership share earnings</div>
         </div>
         <div class="stat-card accent-amber">
-          <div class="stat-label">My + Client Position</div>
-          <div class="stat-value amber">🪙 <span id="pnlPosition">0</span></div>
-          <div class="stat-change">Total book value</div>
+          <div class="stat-label">Net Position</div>
+          <div class="stat-value amber"><span id="pnlPosition">0</span></div>
+          <div class="stat-change">P&amp;L minus commission</div>
         </div>
       </div>
       <div class="card">
@@ -776,6 +776,7 @@ let allOrders   = [];
 let allEvents   = [];
 let allOutcomes = [];
 let allAnnouncements = [];
+let allSettlementResults = [];
 let allMyIds    = [];
 let activeTab   = 'dashboard';
 let clientStatusFilter = 'ALL';
@@ -872,6 +873,10 @@ async function refreshData() {
   [...(results[0].data||[]), ...(results[1].data||[])].forEach(tx=>{ txMap[tx.id]=tx; });
   allTransactions = Object.values(txMap).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   allOrders = (myClients.length > 0 ? results[2].data : null) || [];
+
+  // Load settlement_results for this agent
+  const srRes = await sb.from('settlement_results').select('*').eq('agent_id', currentUser.id);
+  allSettlementResults = srRes.data || [];
 
   renderActiveTab();
 }
@@ -1184,24 +1189,20 @@ function renderBetLog() {
 }
 
 function renderPnL() {
-  const totalVol = allOrders.reduce((s,o)=>s+parseFloat(o.total_cost||0),0);
-  const mComm = parseFloat(currentUser.match_commission||0)/100;
-  const estComm = totalVol * mComm;
+  // Summary stats from actual settlement_results (not estimates)
+  const totalClientPnl = allSettlementResults.reduce((s,r) => s + parseFloat(r.total_client_pnl || 0), 0);
+  const totalCommGiven = allSettlementResults.reduce((s,r) => s + parseFloat(r.agent_commission_share || 0), 0);
+  const agentPnlShare  = allSettlementResults.reduce((s,r) => s + parseFloat(r.agent_pnl_share || 0), 0);
+  const netPosition    = allSettlementResults.reduce((s,r) => s + parseFloat(r.agent_net_pnl || 0), 0);
 
-  // Net received from admin (not from clients)
-  const clientIds = new Set(myClients.map(c=>c.id));
-  const netReceived = allTransactions
-    .filter(t=>t.receiver_id===currentUser.id && !clientIds.has(t.sender_id) && t.transaction_type==='DEPOSIT')
-    .reduce((s,t)=>s+parseFloat(t.amount||0),0)
-    - allTransactions
-    .filter(t=>t.sender_id===currentUser.id && !clientIds.has(t.receiver_id) && t.transaction_type==='WITHDRAWAL')
-    .reduce((s,t)=>s+parseFloat(t.amount||0),0);
-  const position = parseFloat(currentUser.balance||0) + myClients.reduce((s,c)=>s+parseFloat(c.balance||0),0);
+  document.getElementById('pnlVolume').textContent      = fmt(totalClientPnl);
+  document.getElementById('pnlComm').textContent        = fmt(totalCommGiven);
+  document.getElementById('pnlNetReceived').textContent  = fmt(agentPnlShare);
+  document.getElementById('pnlPosition').textContent     = fmt(netPosition);
 
-  document.getElementById('pnlVolume').textContent     = fmt(totalVol,0);
-  document.getElementById('pnlComm').textContent       = fmt(estComm);
-  document.getElementById('pnlNetReceived').textContent= fmt(netReceived);
-  document.getElementById('pnlPosition').textContent   = fmt(position);
+  // Color-code Net Position: green if positive, red if negative
+  const posEl = document.getElementById('pnlPosition');
+  posEl.style.color = netPosition >= 0 ? '#10b981' : '#ef4444';
 
   // Per-client table
   const tbody = document.getElementById('pnlClientTable');
