@@ -388,6 +388,7 @@
             <option value="DEPOSIT">Deposit</option>
             <option value="WITHDRAWAL">Withdrawal</option>
             <option value="SETTLEMENT">Settlement</option>
+            <option value="COMMISSION">Commission</option>
           </select>
           <input type="text" id="txUserSearch" placeholder="Search client…" style="width:140px;" oninput="renderLedger()">
         </div>
@@ -962,8 +963,9 @@ function renderDashboard() {
     feed.innerHTML = recent.map(tx=>{
       const sender   = [...myClients, currentUser].find(u=>u.id===tx.sender_id);
       const receiver = [...myClients, currentUser].find(u=>u.id===tx.receiver_id);
-      const isDeposit = ['DEPOSIT','SETTLEMENT','VOID_REFUND'].includes(tx.transaction_type);
-      const col = isDeposit ? '#10b981' : '#ef4444';
+      const isDeposit = ['DEPOSIT','SETTLEMENT','VOID_REFUND','COMMISSION'].includes(tx.transaction_type);
+      const isCommission = tx.transaction_type === 'COMMISSION';
+      const col = isCommission ? '#a78bfa' : (isDeposit ? '#10b981' : '#ef4444');
       const dotCls = isDeposit ? 'green' : 'red';
       return `<div class="feed-item">
         <div class="feed-dot ${dotCls}"></div>
@@ -1103,15 +1105,16 @@ function renderLedger() {
     txBody.innerHTML = txList.slice(0,200).map(tx=>{
       const sender  =[...myClients,currentUser].find(u=>u.id===tx.sender_id);
       const receiver=[...myClients,currentUser].find(u=>u.id===tx.receiver_id);
-      const isCredit=['DEPOSIT','SETTLEMENT','VOID_REFUND'].includes(tx.transaction_type);
-      const col = isCredit?'#10b981':'#ef4444';
+      const isCredit=['DEPOSIT','SETTLEMENT','VOID_REFUND','COMMISSION'].includes(tx.transaction_type);
+      const txCol = tx.transaction_type === 'COMMISSION' ? '#a78bfa' : (isCredit ? '#10b981' : '#ef4444');
+      const amtCol = isCredit ? '#10b981' : '#ef4444';
       return `<tr>
         <td class="text-muted" style="font-size:0.78rem;white-space:nowrap;">${new Date(tx.created_at).toLocaleString()}</td>
-        <td><span style="background:${col}20;color:${col};padding:2px 7px;border-radius:4px;font-size:0.7rem;font-weight:700;">${tx.transaction_type}</span></td>
+        <td><span style="background:${txCol}20;color:${txCol};padding:2px 7px;border-radius:4px;font-size:0.7rem;font-weight:700;">${tx.transaction_type}</span></td>
         <td class="mono" style="font-size:0.8rem;">${sender?.login_id||'Admin/System'}</td>
         <td class="mono" style="font-size:0.8rem;">${receiver?.login_id||'Admin/System'}</td>
         <td class="text-muted" style="font-size:0.78rem;">${tx.notes||'—'}</td>
-        <td class="mono" style="text-align:right;color:${col};font-weight:700;">🪙 ${fmt(tx.amount)}</td>
+        <td class="mono" style="text-align:right;color:${amtCol};font-weight:700;">🪙 ${fmt(tx.amount)}</td>
       </tr>`;
     }).join('');
   }
