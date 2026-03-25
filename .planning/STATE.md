@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-stopped_at: Completed 01-01-PLAN.md (directory consolidation and notes column)
-last_updated: "2026-03-25T11:50:46.886Z"
+status: Phase 01 complete
+stopped_at: Completed 01-02-PLAN.md (atomic balance settlement RPC)
+last_updated: "2026-03-25T12:00:00.000Z"
 progress:
   total_phases: 8
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-25)
 ## Current Position
 
 Phase: 01 (infrastructure-safety) — EXECUTING
-Plan: 2 of 2
+Plan: 2 of 2 (COMPLETE)
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Plan: 2 of 2
 
 *Updated after each plan completion*
 | Phase 01 P01 | 15min | 3 tasks | 8 files |
+| Phase 01 P02 | 12min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,9 @@ Recent decisions affecting current work:
 - [Phase 01]: Used ADD COLUMN IF NOT EXISTS for idempotent migration safety
 - [Phase 01]: Archived old directory with -ARCHIVED suffix rather than deleting
 - [Phase 01]: Established sql/ directory convention with numbered migration files (001_, 002_)
+- [Phase 01]: SECURITY INVOKER (default) for adjust_balance RPC -- no privilege escalation needed
+- [Phase 01]: No balance floor constraint -- negative balances valid in exposure-based accounting
+- [Phase 01]: Used balErr variable name to avoid shadowing outer error variables in settlement try/catch
 
 ### Pending Todos
 
@@ -74,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-25T11:50:46.884Z
-Stopped at: Completed 01-01-PLAN.md (directory consolidation and notes column)
+Last session: 2026-03-25T12:00:00.000Z
+Stopped at: Completed 01-02-PLAN.md (atomic balance settlement RPC) -- Phase 01 complete
 Resume file: None

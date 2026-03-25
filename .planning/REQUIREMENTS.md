@@ -9,7 +9,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Prerequisites
 
-- [ ] **INFRA-01**: Settlement balance mutations use atomic PostgreSQL RPC (`adjust_balance`) instead of client-side read-modify-write
+- [x] **INFRA-01**: Settlement balance mutations use atomic PostgreSQL RPC (`adjust_balance`) instead of client-side read-modify-write
 - [x] **INFRA-02**: Source directories consolidated to single working directory (eliminate copy workflow)
 - [x] **INFRA-03**: `notes` column verified on `credit_transactions` for audit trail data
 

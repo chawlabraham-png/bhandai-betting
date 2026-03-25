@@ -12,7 +12,7 @@ This milestone adds correct financial economics to the Bhandai betting exchange:
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Infrastructure Safety** - Atomic balance mutations, directory consolidation, audit trail readiness
+- [x] **Phase 1: Infrastructure Safety** - Atomic balance mutations, directory consolidation, audit trail readiness
 - [ ] **Phase 2: Match Commission** - Commission on client losses at match settlement via PostgreSQL RPC
 - [ ] **Phase 3: Fancy Commission** - Commission on total volume at fancy settlement via PostgreSQL RPC
 - [ ] **Phase 4: Commission Visibility** - Commission entries visible across admin, agent, and client views
@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md -- Directory consolidation and notes column verification (INFRA-02, INFRA-03)
-- [ ] 01-02-PLAN.md -- Atomic adjust_balance RPC and settlement code migration (INFRA-01)
+- [x] 01-02-PLAN.md -- Atomic adjust_balance RPC and settlement code migration (INFRA-01)
 
 ### Phase 2: Match Commission
 **Goal**: Match bet settlement correctly deducts commission as a percentage of client losses, with per-user rates and hierarchy enforcement
@@ -158,7 +158,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Safety | 1/2 | In Progress | - |
+| 1. Infrastructure Safety | 2/2 | Complete | 2026-03-25 |
 | 2. Match Commission | 0/0 | Not started | - |
 | 3. Fancy Commission | 0/0 | Not started | - |
 | 4. Commission Visibility | 0/0 | Not started | - |
