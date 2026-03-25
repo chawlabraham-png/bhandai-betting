@@ -66,7 +66,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- Atomic settle_fancy_market RPC with volume-based commission (COMM-06, COMM-07, COMM-08, COMM-09, COMM-10)
+- [x] 03-01-PLAN.md -- Atomic settle_fancy_market RPC with volume-based commission (COMM-06, COMM-07, COMM-08, COMM-09, COMM-10)
 - [ ] 03-02-PLAN.md -- Admin.html integration: replace settleFancyMarket with RPC call (COMM-06, COMM-09)
 
 ### Phase 4: Commission Visibility
