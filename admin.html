@@ -2870,9 +2870,8 @@ async function settleMatchMarket(ev, errEl) {
     }
 
     if (settleAmt > 0.001) {
-      const { data: userRow } = await sb.from('betting_users').select('balance').eq('id', userId).single();
-      const newBal = parseFloat(userRow?.balance || 0) + settleAmt;
-      await sb.from('betting_users').update({ balance: newBal }).eq('id', userId);
+      const { data: newBal, error: balErr } = await sb.rpc('adjust_balance', { p_user_id: userId, p_delta: settleAmt });
+      if (balErr) throw new Error(`Balance update failed for ${userId}: ${balErr.message}`);
       await sb.from('credit_transactions').insert({
         sender_id: currentUser.id, receiver_id: userId,
         amount: settleAmt, transaction_type: 'SETTLEMENT',
@@ -2927,9 +2926,8 @@ async function settleFancyMarket(ev, errEl) {
       if (isWin) {
         const grossPayout = stake * bp;
         const netPayout = grossPayout * (1 - commission / 100);
-        const { data: userRow } = await sb.from('betting_users').select('balance').eq('id', ord.user_id).single();
-        const newBal = parseFloat(userRow?.balance || 0) + netPayout;
-        await sb.from('betting_users').update({ balance: newBal }).eq('id', ord.user_id);
+        const { data: newBal, error: balErr } = await sb.rpc('adjust_balance', { p_user_id: ord.user_id, p_delta: netPayout });
+        if (balErr) throw new Error(`Balance update failed for ${ord.user_id}: ${balErr.message}`);
         await sb.from('credit_transactions').insert({
           sender_id: currentUser.id, receiver_id: ord.user_id,
           amount: netPayout, transaction_type: 'SETTLEMENT',
@@ -3069,9 +3067,8 @@ async function confirmMatchResult() {
         await sb.from('orders').update({ status: 'SETTLED' }).eq('id', ord.id);
         if (ord.outcome_id === winningOutcomeId) {
           const payout = parseFloat(ord.shares || 0);
-          const { data: userRow } = await sb.from('betting_users').select('balance').eq('id', ord.user_id).single();
-          const newBal = parseFloat(userRow?.balance || 0) + payout;
-          await sb.from('betting_users').update({ balance: newBal }).eq('id', ord.user_id);
+          const { data: newBal, error: balErr } = await sb.rpc('adjust_balance', { p_user_id: ord.user_id, p_delta: payout });
+          if (balErr) throw new Error(`Balance update failed for ${ord.user_id}: ${balErr.message}`);
           await sb.from('credit_transactions').insert({
             sender_id: currentUser.id, receiver_id: ord.user_id,
             amount: payout, transaction_type: 'SETTLEMENT',
@@ -3579,9 +3576,8 @@ async function voidMarket(eventId) {
           // Fixed: use avg_buy_price (correct column name), not avg_price
           const refund = parseFloat(pos.total_invested || (shares * parseFloat(pos.avg_buy_price || 0)));
           if (refund <= 0) { showToast(`Warning: zero refund for position ${pos.user_id} — skipped`, 'info'); continue; }
-          const { data: userRow } = await sb.from('betting_users').select('balance').eq('id', pos.user_id).single();
-          const newBal = parseFloat(userRow?.balance || 0) + refund;
-          await sb.from('betting_users').update({ balance: newBal }).eq('id', pos.user_id);
+          const { data: newBal, error: balErr } = await sb.rpc('adjust_balance', { p_user_id: pos.user_id, p_delta: refund });
+          if (balErr) throw new Error(`Balance update failed for ${pos.user_id}: ${balErr.message}`);
           await sb.from('credit_transactions').insert({
             sender_id: currentUser.id, receiver_id: pos.user_id,
             amount: refund, transaction_type: 'VOID_REFUND',
