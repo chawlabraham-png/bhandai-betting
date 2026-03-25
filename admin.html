@@ -507,6 +507,7 @@
             <option value="SETTLEMENT">Settlement</option>
             <option value="AGENT_SETTLEMENT">Agent Settlement</option>
             <option value="VOID_REFUND">Void Refund</option>
+            <option value="COMMISSION">Commission</option>
             <option value="ADMIN_MINT">Admin Mint</option>
           </select>
           <input type="text" id="txUserSearch" placeholder="Search user ID..." style="width:150px;">
@@ -1534,8 +1535,9 @@ function renderDashboard() {
       const sender = allUsers.find(u => u.id === tx.sender_id);
       const receiver = allUsers.find(u => u.id === tx.receiver_id);
       const isDeposit = tx.transaction_type === 'DEPOSIT';
-      const color = isDeposit ? 'green' : tx.transaction_type === 'SETTLEMENT' ? 'blue' : 'red';
-      const icon = isDeposit ? '⬆' : tx.transaction_type === 'SETTLEMENT' ? '🏆' : '⬇';
+      const isComm = tx.transaction_type === 'COMMISSION';
+      const color = isDeposit ? 'green' : tx.transaction_type === 'SETTLEMENT' ? 'blue' : isComm ? '#a78bfa' : 'red';
+      const icon = isDeposit ? '⬆' : tx.transaction_type === 'SETTLEMENT' ? '🏆' : isComm ? '💰' : '⬇';
       const timeStr = new Date(tx.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
       return `<div class="feed-item">
         <div class="feed-dot ${color}"></div>
@@ -1800,7 +1802,7 @@ function renderLedger() {
   // Cash settlements = all client chip burns (chips redeemed for cash — by admin or agent)
   const totalCashSettled = allTransactions.filter(t => t.transaction_type === 'WITHDRAWAL' && allClientIds.has(t.sender_id)).reduce((s, t) => s + parseFloat(t.amount || 0), 0);
   // Market settlements & void refunds mint coins into wallets — count as issued
-  const totalSettlements = allTransactions.filter(t => t.transaction_type === 'SETTLEMENT' || t.transaction_type === 'VOID_REFUND').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+  const totalSettlements = allTransactions.filter(t => t.transaction_type === 'SETTLEMENT' || t.transaction_type === 'VOID_REFUND' || t.transaction_type === 'COMMISSION').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
 
   document.getElementById('ledgerTotal').textContent = totalBals.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
   document.getElementById('ledgerDeposits').textContent = totalDeposits.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -1878,7 +1880,7 @@ function renderLedger() {
     txBody.innerHTML = txList.slice(0, 200).map(tx => {
       const sender = allUsers.find(u => u.id === tx.sender_id);
       const receiver = allUsers.find(u => u.id === tx.receiver_id);
-      const isCredit = ['DEPOSIT', 'SETTLEMENT', 'VOID_REFUND'].includes(tx.transaction_type);
+      const isCredit = ['DEPOSIT', 'SETTLEMENT', 'VOID_REFUND', 'COMMISSION'].includes(tx.transaction_type);
       const typeColor = isCredit ? '#10b981' : '#ef4444';
       return `<tr>
         <td class="text-muted" style="font-size:0.8rem;white-space:nowrap;">${new Date(tx.created_at).toLocaleString()}</td>
@@ -2829,64 +2831,31 @@ async function settleMatchMarket(ev, errEl) {
   const winningOutcome = allOutcomes.find(o => o.id === winningOutcomeId);
   if (!winningOutcome) { errEl.textContent = 'Select a winning outcome.'; return; }
 
-  // Determine if the rate_team (favored team) won
-  const evOutcomes = allOutcomes.filter(o => o.event_id === ev.id);
-  const rateteamOc = evOutcomes.find(o => o.title === ev.rate_team) || evOutcomes[0];
-  const favTeamWon = rateteamOc?.id === winningOutcomeId;
-
-  // Fetch all open orders for this event
-  const { data: orders, error: ordErr } = await sb.from('orders')
-    .select('*').in('outcome_id', evOutcomes.map(o => o.id)).eq('status', 'OPEN');
-  if (ordErr) throw new Error(ordErr.message);
-
-  // Mark event settled
-  const { error: evErr } = await sb.from('events').update({
-    status: 'SETTLED', is_resolved: true, winning_outcome: winningOutcome.title
-  }).eq('id', ev.id);
-  if (evErr) throw new Error(evErr.message);
-
-  await sb.from('outcomes').update({ is_winner: true }).eq('id', winningOutcomeId);
-
-  // Net settlement per user using exposure model:
-  // balance change = exposure (already locked) + netPnl (scenario outcome)
-  let totalPayout = 0;
-  const userMap = {};
-  (orders || []).forEach(o => { if (!userMap[o.user_id]) userMap[o.user_id] = []; userMap[o.user_id].push(o); });
-
-  for (const [userId, userOrds] of Object.entries(userMap)) {
-    let fw = 0, fl = 0;
-    userOrds.forEach(o => {
-      const s = parseFloat(o.total_cost || 0), r = parseFloat(o.price_per_share || 1);
-      if (o.bet_side === 'LAGAI')     { fw += s * r; fl -= s; }
-      else if (o.bet_side === 'KHAI') { fw -= s;     fl += s / r; }
-    });
-    const exposure  = Math.max(0, -Math.min(fw, fl));
-    const netPnl    = favTeamWon ? fw : fl;
-    const settleAmt = parseFloat((exposure + netPnl).toFixed(4));
-
-    // Mark orders settled
-    for (const o of userOrds) {
-      await sb.from('orders').update({ status: 'SETTLED' }).eq('id', o.id);
-    }
-
-    if (settleAmt > 0.001) {
-      const { data: newBal, error: balErr } = await sb.rpc('adjust_balance', { p_user_id: userId, p_delta: settleAmt });
-      if (balErr) throw new Error(`Balance update failed for ${userId}: ${balErr.message}`);
-      await sb.from('credit_transactions').insert({
-        sender_id: currentUser.id, receiver_id: userId,
-        amount: settleAmt, transaction_type: 'SETTLEMENT',
-        notes: `Match settled: ${winningOutcome.title} won in ${ev.title}`
-      });
-      totalPayout += settleAmt;
-    }
-  }
+  // Single atomic RPC replaces the entire client-side settlement loop (per D-13)
+  const { data: result, error: settleErr } = await sb.rpc('settle_match_market', {
+    p_event_id: ev.id,
+    p_winning_outcome_id: winningOutcomeId,
+    p_settled_by: currentUser.id
+  });
+  if (settleErr) throw new Error(settleErr.message);
 
   await auditLog('SETTLE_MARKET', {
     targetId: ev.id,
-    extra: { event: ev.title, winner: winningOutcome.title, users: Object.keys(userMap).length },
-    amount: totalPayout
+    extra: {
+      event: ev.title,
+      winner: result.winning_title,
+      users: result.users_settled,
+      commission: result.total_commission
+    },
+    amount: result.total_payout
   });
-  showToast(`✅ Market settled! Winner: ${winningOutcome.title}. 🪙${totalPayout.toLocaleString(undefined,{maximumFractionDigits:2})} paid out.`, 'success');
+  const fmtAmt = n => '🪙' + parseFloat(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  showToast(
+    `✅ Market settled! Winner: ${result.winning_title}. ` +
+    `${fmtAmt(result.total_payout)} paid out` +
+    (result.total_commission > 0 ? `, ${fmtAmt(result.total_commission)} commission credited.` : '.'),
+    'success'
+  );
   closeModal('modalSettle');
   await refreshData();
 }
