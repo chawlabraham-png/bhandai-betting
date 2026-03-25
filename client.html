@@ -1303,9 +1303,13 @@ function updateBetSlipPreview() {
 
   const commNote = document.getElementById('bsCommNote');
   if (commRate > 0 && stake > 0) {
-    commNote.textContent = `After ${Math.round(commRate*100)}% commission on profit`;
+    commNote.textContent = bsState.isFancy
+      ? 'Commission applies on volume'
+      : 'Commission applies on losses';
+    commNote.style.color = '#a78bfa';
   } else {
     commNote.textContent = '';
+    commNote.style.color = '#64748b';
   }
 
   // Stale odds check
