@@ -39,12 +39,12 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Agent P&L -- Core
 
-- [ ] **APNL-01**: Agent P&L = partnership_share% of client net P&L per settled market
-- [ ] **APNL-02**: Agent commission cost = partnership_share% of total commission paid to clients per market
-- [ ] **APNL-03**: Agent net P&L per market = agent share of client P&L minus agent share of commission cost
-- [ ] **APNL-04**: Agent can go negative -- no floor at zero (owes upward if clients net win)
-- [ ] **APNL-05**: Agent P&L calculated and persisted at market settlement time (snapshot, not retroactive)
-- [ ] **APNL-06**: Settlement results stored in `settlement_results` table for audit/reporting
+- [x] **APNL-01**: Agent P&L = partnership_share% of client net P&L per settled market
+- [x] **APNL-02**: Agent commission cost = partnership_share% of total commission paid to clients per market
+- [x] **APNL-03**: Agent net P&L per market = agent share of client P&L minus agent share of commission cost
+- [x] **APNL-04**: Agent can go negative -- no floor at zero (owes upward if clients net win)
+- [x] **APNL-05**: Agent P&L calculated and persisted at market settlement time (snapshot, not retroactive)
+- [x] **APNL-06**: Settlement results stored in `settlement_results` table for audit/reporting
 
 ### Agent P&L -- Views
 
@@ -128,12 +128,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMM-13 | Phase 4: Commission Visibility | Complete |
 | COMM-14 | Phase 4: Commission Visibility | Complete |
 | COMM-15 | Phase 4: Commission Visibility | Complete |
-| APNL-01 | Phase 5: Agent P&L Core | Pending |
-| APNL-02 | Phase 5: Agent P&L Core | Pending |
-| APNL-03 | Phase 5: Agent P&L Core | Pending |
-| APNL-04 | Phase 5: Agent P&L Core | Pending |
-| APNL-05 | Phase 5: Agent P&L Core | Pending |
-| APNL-06 | Phase 5: Agent P&L Core | Pending |
+| APNL-01 | Phase 5: Agent P&L Core | Complete |
+| APNL-02 | Phase 5: Agent P&L Core | Complete |
+| APNL-03 | Phase 5: Agent P&L Core | Complete |
+| APNL-04 | Phase 5: Agent P&L Core | Complete |
+| APNL-05 | Phase 5: Agent P&L Core | Complete |
+| APNL-06 | Phase 5: Agent P&L Core | Complete |
 | APNL-07 | Phase 6: Agent P&L Views | Pending |
 | APNL-08 | Phase 6: Agent P&L Views | Pending |
 | APNL-09 | Phase 6: Agent P&L Views | Pending |

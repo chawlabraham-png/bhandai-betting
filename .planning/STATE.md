@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to plan
-stopped_at: Completed 04-02-PLAN.md (COMMISSION visibility in agent + admin UIs)
-last_updated: "2026-03-25T16:30:42.541Z"
+status: Ready to execute
+stopped_at: Completed 05-01-PLAN.md (settlement_results table + settle_match_market agent P&L)
+last_updated: "2026-03-25T17:04:46.352Z"
 progress:
   total_phases: 8
   completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 10
+  completed_plans: 9
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** Accurate commission deduction and P&L reporting across the agent-client hierarchy
-**Current focus:** Phase 04 — commission-visibility
+**Current focus:** Phase 05 — agent-p-l-core
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
+Phase: 05 (agent-p-l-core) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Plan: Not started
 | Phase 02 P01 | 15min | 2 tasks | 1 files |
 | Phase 04 P01 | 4min | 2 tasks | 1 files |
 | Phase 04 P02 | 3min | 2 tasks | 2 files |
+| Phase 05 P01 | 3min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,10 @@ Recent decisions affecting current work:
 - [Phase 04]: Extracted _renderCommissionCard, _renderOrderCard, _buildSummaryBar helpers for cleaner renderHistoryTab
 - [Phase 04]: COMMISSION uses purple (#a78bfa) for badge/amount, green dot for credit classification -- consistent across admin and agent
 - [Phase 04]: Admin COMMISSION UI support was missing from Phase 2 -- added in 04-02 as Rule 3 auto-fix
+- [Phase 05]: Combined parent lookup (match_commission + role + partnership_share) in one query to avoid N+1 (Pitfall #5)
+- [Phase 05]: Moved parent lookup outside v_net_pnl < 0 block so agent P&L accumulates for winners too (not just losers)
+- [Phase 05]: Skip agents with 0% partnership_share from settlement_results (discretion: reduces noise)
+- [Phase 05]: Section numbering shifted in settle_match_market: parent lookup 4b, commission 4c, settlement credit 4d, commission credit 4e, agent accum 4f, agent loop Section 5, return Section 6
 
 ### Pending Todos
 
@@ -89,6 +94,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-25T16:27:50.859Z
-Stopped at: Completed 04-02-PLAN.md (COMMISSION visibility in agent + admin UIs)
+Last session: 2026-03-25T17:04:46.349Z
+Stopped at: Completed 05-01-PLAN.md (settlement_results table + settle_match_market agent P&L)
 Resume file: None
