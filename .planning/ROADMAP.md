@@ -79,12 +79,12 @@ Plans:
   3. Agent client ledger view shows COMMISSION entries for their clients
   4. Every COMMISSION row in `credit_transactions` has a `notes` field containing the market name, formula used (losses-only or volume-based), and the base amount
   5. Client bet slip shows a commission preview explaining the applicable formula (match: "X% on losses" or fancy: "X% on volume")
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- Client commission history entries and bet slip preview fix (COMM-12, COMM-14, COMM-15)
+- [ ] 04-02-PLAN.md -- Agent COMMISSION type support and admin verification (COMM-11, COMM-13)
 
 ### Phase 5: Agent P&L Core
 **Goal**: Agent profit and loss is correctly calculated from partnership share of client outcomes and commission costs, persisted at settlement time
@@ -161,7 +161,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 1. Infrastructure Safety | 2/2 | Complete | 2026-03-25 |
 | 2. Match Commission | 2/2 | Complete | 2026-03-25 |
 | 3. Fancy Commission | 0/2 | Not started | - |
-| 4. Commission Visibility | 0/0 | Not started | - |
+| 4. Commission Visibility | 0/2 | Not started | - |
 | 5. Agent P&L Core | 0/0 | Not started | - |
 | 6. Agent P&L Views | 0/0 | Not started | - |
 | 7. Agent Mobile UI | 0/0 | Not started | - |
