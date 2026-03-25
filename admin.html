@@ -2865,55 +2865,32 @@ async function settleFancyMarket(ev, errEl) {
   const resultNotes = document.getElementById('fancyResultNotes').value.trim();
   if (isNaN(resultVal) || resultVal < 0) { errEl.textContent = 'Enter a valid result value.'; return; }
 
-  const ocs = allOutcomes.filter(o => o.event_id === ev.id);
-  if (!ocs.length) { errEl.textContent = 'No outcomes found.'; return; }
-
-  // Fetch all open orders for this fancy market
-  const { data: orders, error: ordErr } = await sb.from('orders')
-    .select('*').in('outcome_id', ocs.map(o => o.id)).eq('status', 'OPEN');
-  if (ordErr) throw new Error(ordErr.message);
-
-  // Mark event settled with result
-  const { error: evErr } = await sb.from('events').update({
-    status: 'SETTLED', is_resolved: true,
-    result_value: resultVal, result_notes: resultNotes || null
-  }).eq('id', ev.id);
-  if (evErr) throw new Error(evErr.message);
-
-  let totalPayout = 0, winnersCount = 0;
-  if (orders && orders.length > 0) {
-    for (const ord of orders) {
-      const line = parseFloat(ord.line_at_bet || 0);
-      const stake = parseFloat(ord.total_cost || 0);
-      const bp = parseFloat(ord.price_per_share || 1.9);
-      const commission = 0; // TODO: apply user commission when client is built
-      const isWin = (ord.bet_side === 'YES' && resultVal >= line) || (ord.bet_side === 'NO' && resultVal < line);
-
-      // Mark order settled
-      await sb.from('orders').update({ status: 'SETTLED' }).eq('id', ord.id);
-
-      if (isWin) {
-        const grossPayout = stake * bp;
-        const netPayout = grossPayout * (1 - commission / 100);
-        const { data: newBal, error: balErr } = await sb.rpc('adjust_balance', { p_user_id: ord.user_id, p_delta: netPayout });
-        if (balErr) throw new Error(`Balance update failed for ${ord.user_id}: ${balErr.message}`);
-        await sb.from('credit_transactions').insert({
-          sender_id: currentUser.id, receiver_id: ord.user_id,
-          amount: netPayout, transaction_type: 'SETTLEMENT',
-          notes: `Fancy win: ${ord.bet_side} at line ${line} — result ${resultVal} in "${ev.title}"`
-        });
-        totalPayout += netPayout;
-        winnersCount++;
-      }
-    }
-  }
+  // Single atomic RPC replaces the entire client-side settlement loop (per D-10)
+  const { data: result, error: settleErr } = await sb.rpc('settle_fancy_market', {
+    p_event_id: ev.id,
+    p_result_value: resultVal,
+    p_settled_by: currentUser.id
+  });
+  if (settleErr) throw new Error(settleErr.message);
 
   await auditLog('SETTLE_MARKET', {
     targetId: ev.id,
-    extra: { event: ev.title, type: 'FANCY', result: resultVal, totalOrders: orders?.length || 0, winners: winnersCount },
-    amount: totalPayout
+    extra: {
+      event: ev.title,
+      type: 'FANCY',
+      result: resultVal,
+      users: result.users_settled,
+      winners: result.winners_count,
+      commission: result.total_commission
+    },
+    amount: result.total_payout
   });
-  showToast(`✅ Fancy settled! Result: ${resultVal}. ${winnersCount} winners paid out 🪙${totalPayout.toLocaleString(undefined,{maximumFractionDigits:2})}.`, 'success');
+  const fmtAmt = n => '🪙' + parseFloat(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  showToast(
+    `✅ Fancy settled! Result: ${resultVal}. ${result.winners_count} winners, ${fmtAmt(result.total_payout)} paid out` +
+    (result.total_commission > 0 ? `, ${fmtAmt(result.total_commission)} commission credited.` : '.'),
+    'success'
+  );
   closeModal('modalSettle');
   await refreshData();
 }
