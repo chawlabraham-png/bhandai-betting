@@ -1,13 +1,28 @@
--- Phase 3: COMM-06..10 -- Atomic fancy market settlement with commission
+-- Phase 3: COMM-06..10, Phase 5: APNL-01..06
+-- Atomic fancy market settlement with commission and agent P&L.
 -- Replaces the client-side settlement loop in admin.html (lines 2863-2919)
 -- with a single atomic PostgreSQL function.
 --
--- Commission model (per CONTEXT.md D-01/D-02/D-04/D-05):
+-- Commission model (per Phase 3 CONTEXT.md D-01/D-02/D-04/D-05):
 --   Commission IS a coin credit to clients (rebate/incentive).
 --   Calculated as fancy_commission% of total volume (SUM of total_cost).
 --   Paid regardless of win or loss (unlike match which is losses only).
 --   Rate capped at parent agent's rate (D-08).
 --   FLOOR-rounded to favor admin (D-09).
+--
+-- Agent P&L model (per Phase 5 CONTEXT.md D-01..D-15):
+--   For each agent whose clients had orders in this market:
+--   - agent_pnl_share = partnership_share% of negated client P&L sum
+--     (clients lose -> agent earns; clients win -> agent owes upward)
+--   - agent_commission_share = partnership_share% of commission paid to clients
+--   - agent_net_pnl = pnl_share - commission_share (can go negative, D-04)
+--   - Results persisted in settlement_results table (INSERT-only, D-07)
+--   - partnership_share snapshot frozen at settlement time (D-05)
+--   - Only clients with AGENT-role parent generate entries (D-13/D-14)
+--   - Agents with 0% partnership_share are skipped (discretion: reduces noise)
+--   - FLOOR rounding favors admin (D-15)
+--   - PITFALL #3: Fancy net P&L = v_total_payout_user - v_total_volume
+--     (no pre-computed v_net_pnl variable like match RPC)
 --
 -- Uses SECURITY INVOKER (Supabase default).
 
@@ -37,6 +52,19 @@ DECLARE
   v_winners_count     INTEGER := 0;
   v_losers_count      INTEGER := 0;
   v_result            JSONB;
+
+  -- Phase 5: Agent P&L variables (JSONB accumulator pattern)
+  v_agent_accum       JSONB := '{}'::JSONB;   -- {agent_id: {pnl: N, comm: N}}
+  v_agent_key         TEXT;
+  v_agent_rec         RECORD;
+  v_agent_pnl         NUMERIC;
+  v_agent_comm        NUMERIC;
+  v_agent_net         NUMERIC;
+  v_agent_share       NUMERIC;
+  v_parent_role       TEXT;                    -- to check if parent is AGENT (D-14)
+  v_agent_results     JSONB := '[]'::JSONB;   -- return value (D-12)
+  v_agent_login_id    TEXT;                    -- for display convenience in return array
+  v_fancy_net_pnl     NUMERIC;                -- Pitfall #3: fancy net P&L = payout - volume
 BEGIN
 
   -- =====================================================================
@@ -155,7 +183,25 @@ BEGIN
     END IF;
 
     -- -----------------------------------------------------------------
-    -- 3c: Compute and credit commission (per D-02, D-05, D-06, D-08, D-09)
+    -- 3c: Look up parent info (combined for commission cap + agent P&L)
+    --     Single query per user avoids N+1 redundancy (Pitfall #5).
+    --     Fetches fancy_commission (for cap), role (for D-14 AGENT check),
+    --     and partnership_share (for agent P&L accumulation).
+    -- -----------------------------------------------------------------
+
+    v_parent_rate := NULL;
+    v_parent_role := NULL;
+    v_agent_share := NULL;
+
+    IF v_user.parent_id IS NOT NULL THEN
+      SELECT fancy_commission, role, partnership_share
+        INTO v_parent_rate, v_parent_role, v_agent_share
+        FROM public.betting_users
+       WHERE id = v_user.parent_id;
+    END IF;
+
+    -- -----------------------------------------------------------------
+    -- 3d: Compute and credit commission (per D-02, D-05, D-06, D-08, D-09)
     --     CRITICAL: NOT gated by win/loss (Pitfall #1 from research).
     --     Commission applies to ALL users with volume, regardless of outcome.
     -- -----------------------------------------------------------------
@@ -165,15 +211,9 @@ BEGIN
 
     -- D-06: skip if rate is 0
     IF v_comm_rate > 0 THEN
-      -- D-08: cap at parent agent's rate
-      IF v_user.parent_id IS NOT NULL THEN
-        SELECT fancy_commission INTO v_parent_rate
-          FROM public.betting_users
-         WHERE id = v_user.parent_id;
-
-        IF v_parent_rate IS NOT NULL AND v_comm_rate > v_parent_rate THEN
-          v_comm_rate := v_parent_rate;
-        END IF;
+      -- D-08: cap at parent agent's rate (uses v_parent_rate from 3c)
+      IF v_parent_rate IS NOT NULL AND v_comm_rate > v_parent_rate THEN
+        v_comm_rate := v_parent_rate;
       END IF;
 
       -- D-09: FLOOR rounding, same as match (less to client, favors admin)
@@ -197,8 +237,109 @@ BEGIN
       v_total_commission := v_total_commission + v_commission;
     END IF;
 
+    -- -----------------------------------------------------------------
+    -- 3f: Accumulate agent P&L (per D-09, D-11)
+    --     Runs for ALL users, not just losers.
+    --     Only accumulates for clients whose parent is role='AGENT' (D-14)
+    --     and has partnership_share > 0 (discretion: skip 0% agents).
+    --     Uses parent info already fetched in 3c (no extra query).
+    --
+    --     PITFALL #3: Fancy does NOT have a v_net_pnl variable.
+    --     Compute v_fancy_net_pnl = v_total_payout_user - v_total_volume.
+    --     Same sign convention as match: negative = client lost.
+    --
+    --     v_commission is always >= 0 (credit to client). Accumulate as-is.
+    -- -----------------------------------------------------------------
+
+    v_fancy_net_pnl := v_total_payout_user - v_total_volume;
+
+    IF v_user.parent_id IS NOT NULL
+       AND v_parent_role = 'AGENT'
+       AND COALESCE(v_agent_share, 0) > 0
+    THEN
+      v_agent_key := v_user.parent_id::TEXT;
+      IF v_agent_accum ? v_agent_key THEN
+        v_agent_accum := jsonb_set(
+          v_agent_accum,
+          ARRAY[v_agent_key, 'pnl'],
+          to_jsonb((v_agent_accum->v_agent_key->>'pnl')::NUMERIC + v_fancy_net_pnl)
+        );
+        v_agent_accum := jsonb_set(
+          v_agent_accum,
+          ARRAY[v_agent_key, 'comm'],
+          to_jsonb((v_agent_accum->v_agent_key->>'comm')::NUMERIC + v_commission)
+        );
+      ELSE
+        v_agent_accum := jsonb_set(
+          v_agent_accum,
+          ARRAY[v_agent_key],
+          jsonb_build_object('pnl', v_fancy_net_pnl, 'comm', v_commission)
+        );
+      END IF;
+    END IF;
+
     v_users_settled := v_users_settled + 1;
 
+  END LOOP;
+
+  -- =====================================================================
+  -- Section 3g: Agent P&L -- compute shares and persist (D-09, D-11)
+  --   Same logic as settle_match_market Section 5.
+  --   For each agent accumulated in Section 3f:
+  --   - Look up partnership_share from betting_users (snapshot at settlement)
+  --   - agent_pnl_share = FLOOR((-total_client_pnl) * share / 100 * 100) / 100
+  --     (negate client P&L: if clients lost, agent earns -- D-01, Pitfall #1)
+  --   - agent_commission_share = FLOOR(total_commission * share / 100 * 100) / 100
+  --     (agent bears their share of commission cost -- D-02)
+  --   - agent_net_pnl = agent_pnl_share - agent_commission_share (D-03)
+  --   - No floor at zero -- agent can go negative (D-04)
+  --   - FLOOR rounding favors admin (D-15)
+  -- =====================================================================
+
+  FOR v_agent_rec IN
+    SELECT key AS agent_id,
+           (value->>'pnl')::NUMERIC AS total_client_pnl,
+           (value->>'comm')::NUMERIC AS total_commission
+      FROM jsonb_each(v_agent_accum)
+  LOOP
+    -- Read the partnership_share at settlement time (D-05 snapshot)
+    SELECT partnership_share, login_id INTO v_agent_share, v_agent_login_id
+      FROM public.betting_users
+     WHERE id = v_agent_rec.agent_id::UUID;
+
+    v_agent_share := COALESCE(v_agent_share, 0);
+
+    -- D-01: Agent earns when clients lose. Client P&L negative = client lost.
+    -- Negate total_client_pnl so agent_pnl_share is positive when clients lost.
+    -- D-15: FLOOR rounding favors admin (agent gets less)
+    v_agent_pnl := FLOOR((-v_agent_rec.total_client_pnl) * v_agent_share / 100.0 * 100.0) / 100.0;
+
+    -- D-02: Agent bears share of commission cost
+    v_agent_comm := FLOOR(v_agent_rec.total_commission * v_agent_share / 100.0 * 100.0) / 100.0;
+
+    -- D-03: Net = P&L share minus commission cost share
+    -- D-04: No GREATEST(0,...) -- agent can go negative
+    v_agent_net := v_agent_pnl - v_agent_comm;
+
+    -- D-06, D-07: INSERT-only into settlement_results (append-only audit)
+    INSERT INTO public.settlement_results (
+      event_id, agent_id, total_client_pnl, total_commission_paid,
+      agent_pnl_share, agent_commission_share, agent_net_pnl,
+      partnership_share_at_settlement, settled_at
+    ) VALUES (
+      p_event_id, v_agent_rec.agent_id::UUID, v_agent_rec.total_client_pnl,
+      v_agent_rec.total_commission, v_agent_pnl, v_agent_comm, v_agent_net,
+      v_agent_share, NOW()
+    );
+
+    -- D-12: Build agent_results return array
+    v_agent_results := v_agent_results || jsonb_build_object(
+      'agent_id', v_agent_rec.agent_id,
+      'login_id', v_agent_login_id,
+      'pnl_share', v_agent_pnl,
+      'commission_cost', v_agent_comm,
+      'net_pnl', v_agent_net
+    );
   END LOOP;
 
   -- =====================================================================
@@ -212,7 +353,8 @@ BEGIN
     'total_payout', v_total_payout,
     'total_commission', v_total_commission,
     'winners_count', v_winners_count,
-    'losers_count', v_losers_count
+    'losers_count', v_losers_count,
+    'agent_results', v_agent_results
   );
 
   RETURN v_result;
