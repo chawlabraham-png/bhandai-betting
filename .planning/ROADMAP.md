@@ -63,11 +63,11 @@ Plans:
   3. Each client's effective fancy commission rate is capped at their parent agent's rate at settlement time
   4. COMMISSION appears as a separate row in `credit_transactions` with notes linking to the market and volume amount
   5. Fancy settlement executes as a single PostgreSQL RPC call
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md -- Atomic settle_fancy_market RPC with volume-based commission (COMM-06, COMM-07, COMM-08, COMM-09, COMM-10)
+- [ ] 03-02-PLAN.md -- Admin.html integration: replace settleFancyMarket with RPC call (COMM-06, COMM-09)
 
 ### Phase 4: Commission Visibility
 **Goal**: All users can see commission transactions in their respective views with correct filtering and contextual information
@@ -159,8 +159,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Safety | 2/2 | Complete | 2026-03-25 |
-| 2. Match Commission | 1/2 | In Progress | - |
-| 3. Fancy Commission | 0/0 | Not started | - |
+| 2. Match Commission | 2/2 | Complete | 2026-03-25 |
+| 3. Fancy Commission | 0/2 | Not started | - |
 | 4. Commission Visibility | 0/0 | Not started | - |
 | 5. Agent P&L Core | 0/0 | Not started | - |
 | 6. Agent P&L Views | 0/0 | Not started | - |
