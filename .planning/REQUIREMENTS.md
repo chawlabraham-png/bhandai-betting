@@ -31,11 +31,11 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Commission -- Visibility
 
-- [ ] **COMM-11**: COMMISSION transactions visible in admin master ledger with filtering
-- [ ] **COMM-12**: COMMISSION transactions visible in client history/ledger
-- [ ] **COMM-13**: COMMISSION transactions visible in agent client ledger view
-- [ ] **COMM-14**: Commission audit trail -- each COMMISSION entry includes rich notes linking to market and loss/volume amount
-- [ ] **COMM-15**: Client bet slip commission preview shows correct formula (match: on losses, fancy: on volume)
+- [x] **COMM-11**: COMMISSION transactions visible in admin master ledger with filtering
+- [x] **COMM-12**: COMMISSION transactions visible in client history/ledger
+- [x] **COMM-13**: COMMISSION transactions visible in agent client ledger view
+- [x] **COMM-14**: Commission audit trail -- each COMMISSION entry includes rich notes linking to market and loss/volume amount
+- [x] **COMM-15**: Client bet slip commission preview shows correct formula (match: on losses, fancy: on volume)
 
 ### Agent P&L -- Core
 
@@ -123,11 +123,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMM-08 | Phase 3: Fancy Commission | Pending |
 | COMM-09 | Phase 3: Fancy Commission | Pending |
 | COMM-10 | Phase 3: Fancy Commission | Pending |
-| COMM-11 | Phase 4: Commission Visibility | Pending |
-| COMM-12 | Phase 4: Commission Visibility | Pending |
-| COMM-13 | Phase 4: Commission Visibility | Pending |
-| COMM-14 | Phase 4: Commission Visibility | Pending |
-| COMM-15 | Phase 4: Commission Visibility | Pending |
+| COMM-11 | Phase 4: Commission Visibility | Complete |
+| COMM-12 | Phase 4: Commission Visibility | Complete |
+| COMM-13 | Phase 4: Commission Visibility | Complete |
+| COMM-14 | Phase 4: Commission Visibility | Complete |
+| COMM-15 | Phase 4: Commission Visibility | Complete |
 | APNL-01 | Phase 5: Agent P&L Core | Pending |
 | APNL-02 | Phase 5: Agent P&L Core | Pending |
 | APNL-03 | Phase 5: Agent P&L Core | Pending |

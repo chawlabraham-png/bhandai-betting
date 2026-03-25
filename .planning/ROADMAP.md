@@ -83,8 +83,8 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 04-01-PLAN.md -- Client commission history entries and bet slip preview fix (COMM-12, COMM-14, COMM-15)
-- [ ] 04-02-PLAN.md -- Agent COMMISSION type support and admin verification (COMM-11, COMM-13)
+- [x] 04-01-PLAN.md -- Client commission history entries and bet slip preview fix (COMM-12, COMM-14, COMM-15)
+- [x] 04-02-PLAN.md -- Agent COMMISSION type support and admin verification (COMM-11, COMM-13)
 
 ### Phase 5: Agent P&L Core
 **Goal**: Agent profit and loss is correctly calculated from partnership share of client outcomes and commission costs, persisted at settlement time

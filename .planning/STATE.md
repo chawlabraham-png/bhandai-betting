@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to plan
-stopped_at: Completed 02-01-PLAN.md (atomic settle_match_market RPC with commission)
-last_updated: "2026-03-25T16:09:41.621Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 04-02-PLAN.md (COMMISSION visibility in agent + admin UIs)
+last_updated: "2026-03-25T16:27:50.862Z"
 progress:
   total_phases: 8
-  completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  completed_phases: 4
+  total_plans: 8
+  completed_plans: 8
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** Accurate commission deduction and P&L reporting across the agent-client hierarchy
-**Current focus:** Phase 03 — fancy-commission
+**Current focus:** Phase 04 — commission-visibility
 
 ## Current Position
 
-Phase: 4
-Plan: Not started
+Phase: 04 (commission-visibility) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -49,6 +49,8 @@ Plan: Not started
 | Phase 01 P01 | 15min | 3 tasks | 8 files |
 | Phase 01 P02 | 12min | 3 tasks | 2 files |
 | Phase 02 P01 | 15min | 2 tasks | 1 files |
+| Phase 04 P01 | 4min | 2 tasks | 1 files |
+| Phase 04 P02 | 3min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -71,6 +73,10 @@ Recent decisions affecting current work:
 - [Phase 02]: Inline balance updates inside PL/pgSQL instead of nested adjust_balance RPC call
 - [Phase 02]: FLOOR rounding for commission credits -- gives less to client, favoring admin
 - [Phase 02]: Commission gating independent of settle_amt -- pure losers still get commission (Pitfall #6)
+- [Phase 04]: Used sanitize() on all parsed notes values in commission cards per CLAUDE.md XSS convention
+- [Phase 04]: Extracted _renderCommissionCard, _renderOrderCard, _buildSummaryBar helpers for cleaner renderHistoryTab
+- [Phase 04]: COMMISSION uses purple (#a78bfa) for badge/amount, green dot for credit classification -- consistent across admin and agent
+- [Phase 04]: Admin COMMISSION UI support was missing from Phase 2 -- added in 04-02 as Rule 3 auto-fix
 
 ### Pending Todos
 
@@ -83,6 +89,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-25T13:37:16.611Z
-Stopped at: Completed 02-01-PLAN.md (atomic settle_match_market RPC with commission)
+Last session: 2026-03-25T16:27:50.859Z
+Stopped at: Completed 04-02-PLAN.md (COMMISSION visibility in agent + admin UIs)
 Resume file: None
