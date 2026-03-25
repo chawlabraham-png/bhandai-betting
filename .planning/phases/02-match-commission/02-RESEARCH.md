@@ -461,7 +461,7 @@ This provides human-readable audit data. For machine-readable data, consider add
 | COMM-02 | Rate from betting_users.match_commission | manual | Set rate to 5%, settle, verify 5% applied | N/A |
 | COMM-03 | Rate capped at parent agent's rate | manual | Set client rate > agent rate, settle, verify cap | N/A |
 | COMM-04 | Separate COMMISSION transaction row | manual | Check credit_transactions for COMMISSION type | N/A |
-| COMM-05 (overridden) | Commission does NOT credit balance | manual | Verify client balance unchanged by commission | N/A |
+| COMM-05 | Commission credits client balance | manual | Verify client balance increased by commission amount (corrected per CONTEXT.md D-01/D-04) | N/A |
 
 ### Sampling Rate
 - **Per task commit:** Manually settle one test market and inspect credit_transactions
@@ -481,7 +481,7 @@ The planner should include these specific test scenarios in verification steps:
 5. **Hierarchy cap:** Client has match_commission=8%, parent agent has match_commission=5%. Expected: Effective rate = 5%.
 6. **No parent (admin-direct client):** Client under admin with match_commission=3%. Expected: Rate = 3%, no parent cap applied.
 7. **Zero commission rate:** Client with match_commission=0% loses. Expected: No COMMISSION row.
-8. **Rounding favors admin:** Net loss = 33.33, rate = 7%. Raw commission = 2.3331. Expected: CEIL to 2.34 (rounded UP per D-10).
+8. **Rounding favors admin:** Net loss = 33.33, rate = 7%. Raw commission = 2.3331. Expected: FLOOR to 2.33 (rounded DOWN per D-10, since commission is a credit — give client less) (corrected per CONTEXT.md D-01/D-04).
 9. **Reconciliation integrity:** After settlement with commission, reconciliation banner shows "Chip Integrity OK" (no drift).
 10. **Settle_amt = 0 but commission exists:** Client who loses everything (exposure fully consumed) still gets a COMMISSION audit entry.
 
