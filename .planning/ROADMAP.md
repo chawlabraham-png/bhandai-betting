@@ -96,11 +96,11 @@ Plans:
   3. Agent net P&L per market = agent share of client P&L minus agent share of commission cost (both are separate calculations)
   4. Agent P&L can go negative (if clients net win, agent owes upward -- no floor at zero)
   5. Settlement results are persisted in a `settlement_results` table at settlement time (snapshot, not retroactively computed)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
+- [ ] 05-01-PLAN.md -- settlement_results table and settle_match_market RPC agent P&L extension (APNL-01, APNL-02, APNL-03, APNL-04, APNL-05, APNL-06)
+- [ ] 05-02-PLAN.md -- settle_fancy_market RPC agent P&L extension and Supabase deployment (APNL-01, APNL-02, APNL-03, APNL-04, APNL-05, APNL-06)
 
 ### Phase 6: Agent P&L Views
 **Goal**: Agents can view their P&L across markets and clients, and admins see share-adjusted settlement cards
@@ -162,7 +162,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 2. Match Commission | 2/2 | Complete | 2026-03-25 |
 | 3. Fancy Commission | 0/2 | Not started | - |
 | 4. Commission Visibility | 0/2 | Not started | - |
-| 5. Agent P&L Core | 0/0 | Not started | - |
+| 5. Agent P&L Core | 0/2 | Not started | - |
 | 6. Agent P&L Views | 0/0 | Not started | - |
 | 7. Agent Mobile UI | 0/0 | Not started | - |
 | 8. Code Modularization | 0/0 | Not started | - |
