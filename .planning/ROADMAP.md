@@ -31,11 +31,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. Balance updates during settlement use a PostgreSQL RPC that performs atomic `SET balance = balance + delta` (no client-side read-modify-write)
   2. All source code lives in a single working directory (no copy workflow between directories)
   3. The `notes` column on `credit_transactions` accepts arbitrary text for audit trail data
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Directory consolidation and notes column verification (INFRA-02, INFRA-03)
+- [ ] 01-02-PLAN.md -- Atomic adjust_balance RPC and settlement code migration (INFRA-01)
 
 ### Phase 2: Match Commission
 **Goal**: Match bet settlement correctly deducts commission as a percentage of client losses, with per-user rates and hierarchy enforcement
@@ -158,7 +158,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Safety | 0/0 | Not started | - |
+| 1. Infrastructure Safety | 0/2 | Planning complete | - |
 | 2. Match Commission | 0/0 | Not started | - |
 | 3. Fancy Commission | 0/0 | Not started | - |
 | 4. Commission Visibility | 0/0 | Not started | - |
