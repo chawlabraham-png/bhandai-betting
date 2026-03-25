@@ -31,6 +31,9 @@ Accurate commission deduction and P&L reporting across the agent-client hierarch
 - ✓ Audit log with action tracking — existing
 - ✓ Agent client management and fund transfers — existing
 - ✓ Client mobile-first responsive UI — existing
+- ✓ Atomic balance mutations via PostgreSQL RPC (adjust_balance) — Phase 1
+- ✓ Single source directory (old directory archived) — Phase 1
+- ✓ Audit trail notes column on credit_transactions — Phase 1
 
 ### Active
 
@@ -104,4 +107,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-25 after initialization*
+*Last updated: 2026-03-25 after Phase 1 completion*
