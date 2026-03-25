@@ -2829,6 +2829,17 @@ async function settleMatchMarket(ev, errEl) {
   const winningOutcome = allOutcomes.find(o => o.id === winningOutcomeId);
   if (!winningOutcome) { errEl.textContent = 'Select a winning outcome.'; return; }
 
+  // Determine if the rate_team (favored team) won
+  const evOutcomes = allOutcomes.filter(o => o.event_id === ev.id);
+  const rateteamOc = evOutcomes.find(o => o.title === ev.rate_team) || evOutcomes[0];
+  const favTeamWon = rateteamOc?.id === winningOutcomeId;
+
+  // Fetch all open orders for this event
+  const { data: orders, error: ordErr } = await sb.from('orders')
+    .select('*').in('outcome_id', evOutcomes.map(o => o.id)).eq('status', 'OPEN');
+  if (ordErr) throw new Error(ordErr.message);
+
+  // Mark event settled
   const { error: evErr } = await sb.from('events').update({
     status: 'SETTLED', is_resolved: true, winning_outcome: winningOutcome.title
   }).eq('id', ev.id);
@@ -2836,28 +2847,47 @@ async function settleMatchMarket(ev, errEl) {
 
   await sb.from('outcomes').update({ is_winner: true }).eq('id', winningOutcomeId);
 
-  const { data: winPositions } = await sb.from('portfolio_positions').select('*').eq('outcome_id', winningOutcomeId);
-  const totalPayout = winPositions ? winPositions.reduce((s, p) => s + parseFloat(p.shares_owned||0), 0) : 0;
-  if (winPositions && winPositions.length > 0) {
-    for (const pos of winPositions) {
-      const payout = parseFloat(pos.shares_owned) * 1.0;
-      const { data: userRow } = await sb.from('betting_users').select('balance').eq('id', pos.user_id).single();
-      const newBal = parseFloat(userRow.balance || 0) + payout;
-      await sb.from('betting_users').update({ balance: newBal }).eq('id', pos.user_id);
+  // Net settlement per user using exposure model:
+  // balance change = exposure (already locked) + netPnl (scenario outcome)
+  let totalPayout = 0;
+  const userMap = {};
+  (orders || []).forEach(o => { if (!userMap[o.user_id]) userMap[o.user_id] = []; userMap[o.user_id].push(o); });
+
+  for (const [userId, userOrds] of Object.entries(userMap)) {
+    let fw = 0, fl = 0;
+    userOrds.forEach(o => {
+      const s = parseFloat(o.total_cost || 0), r = parseFloat(o.price_per_share || 1);
+      if (o.bet_side === 'LAGAI')     { fw += s * r; fl -= s; }
+      else if (o.bet_side === 'KHAI') { fw -= s;     fl += s / r; }
+    });
+    const exposure  = Math.max(0, -Math.min(fw, fl));
+    const netPnl    = favTeamWon ? fw : fl;
+    const settleAmt = parseFloat((exposure + netPnl).toFixed(4));
+
+    // Mark orders settled
+    for (const o of userOrds) {
+      await sb.from('orders').update({ status: 'SETTLED' }).eq('id', o.id);
+    }
+
+    if (settleAmt > 0.001) {
+      const { data: userRow } = await sb.from('betting_users').select('balance').eq('id', userId).single();
+      const newBal = parseFloat(userRow?.balance || 0) + settleAmt;
+      await sb.from('betting_users').update({ balance: newBal }).eq('id', userId);
       await sb.from('credit_transactions').insert({
-        sender_id: currentUser.id, receiver_id: pos.user_id,
-        amount: payout, transaction_type: 'SETTLEMENT',
-        notes: `Payout: ${winningOutcome.title} won in ${ev.title}`
+        sender_id: currentUser.id, receiver_id: userId,
+        amount: settleAmt, transaction_type: 'SETTLEMENT',
+        notes: `Match settled: ${winningOutcome.title} won in ${ev.title}`
       });
+      totalPayout += settleAmt;
     }
   }
 
   await auditLog('SETTLE_MARKET', {
     targetId: ev.id,
-    extra: { event: ev.title, winner: winningOutcome.title, payouts: winPositions?.length || 0 },
+    extra: { event: ev.title, winner: winningOutcome.title, users: Object.keys(userMap).length },
     amount: totalPayout
   });
-  showToast(`✅ Market settled! Winner: ${winningOutcome.title}. ${winPositions?.length || 0} positions paid out.`, 'success');
+  showToast(`✅ Market settled! Winner: ${winningOutcome.title}. 🪙${totalPayout.toLocaleString(undefined,{maximumFractionDigits:2})} paid out.`, 'success');
   closeModal('modalSettle');
   await refreshData();
 }
