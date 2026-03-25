@@ -100,7 +100,7 @@ Plans:
 
 Plans:
 - [x] 05-01-PLAN.md -- settlement_results table and settle_match_market RPC agent P&L extension (APNL-01, APNL-02, APNL-03, APNL-04, APNL-05, APNL-06)
-- [ ] 05-02-PLAN.md -- settle_fancy_market RPC agent P&L extension and Supabase deployment (APNL-01, APNL-02, APNL-03, APNL-04, APNL-05, APNL-06)
+- [x] 05-02-PLAN.md -- settle_fancy_market RPC agent P&L extension and Supabase deployment (APNL-01, APNL-02, APNL-03, APNL-04, APNL-05, APNL-06)
 
 ### Phase 6: Agent P&L Views
 **Goal**: Agents can view their P&L across markets and clients, and admins see share-adjusted settlement cards
