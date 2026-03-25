@@ -473,6 +473,7 @@
       <div class="filter-pill" id="hf-SETTLED"  onclick="setHistoryFilter('SETTLED',this)">Settled</div>
       <div class="filter-pill" id="hf-MATCH"    onclick="setHistoryFilter('MATCH',this)">Match</div>
       <div class="filter-pill" id="hf-FANCY"    onclick="setHistoryFilter('FANCY',this)">Fancy</div>
+      <div class="filter-pill" id="hf-COMMISSION" onclick="setHistoryFilter('COMMISSION',this)">Commission</div>
     </div>
     <div id="historyContainer"><div class="loading-row">Loading…</div></div>
   </div>
@@ -600,6 +601,7 @@
 const db = window.supabaseClient;
 let currentUser = null, currentProfile = null;
 let allEvents = [], allOutcomes = [], myOrders = [], announcements = [];
+let myCommissions = [];
 let marketFilter = 'ALL', portfolioFilter = 'OPEN', historyFilter = 'ALL';
 let marketSearch = '';
 let isSubmitting = false;
@@ -644,19 +646,25 @@ async function refreshData() {
   const refreshBtns = document.querySelectorAll('.refresh-icon-btn');
   refreshBtns.forEach(b => b.classList.add('spinning'));
 
-  const [evRes, ocRes, ordRes] = await Promise.all([
+  const [evRes, ocRes, ordRes, commRes] = await Promise.all([
     db.from('events').select('*').not('status','eq','VOID').order('created_at',{ascending:false}),
     db.from('outcomes').select('*'),
     db.from('orders')
       .select('*, events(title,market_type,status,line_value,result_value,winning_outcome,rate_team), outcomes(title,back_price,is_yes_outcome)')
       .eq('user_id', currentUser.id)
       .order('created_at', {ascending:false})
-      .limit(500)
+      .limit(500),
+    db.from('credit_transactions').select('*')
+      .eq('receiver_id', currentUser.id)
+      .eq('transaction_type', 'COMMISSION')
+      .order('created_at', {ascending:false})
+      .limit(100)
   ]);
 
-  allEvents   = evRes.data  || [];
-  allOutcomes = ocRes.data  || [];
-  myOrders    = ordRes.data || [];
+  allEvents      = evRes.data  || [];
+  allOutcomes    = ocRes.data  || [];
+  myOrders       = ordRes.data || [];
+  myCommissions  = commRes.data || [];
 
   await syncBalance();
   renderMarketsTab();
@@ -1897,134 +1905,198 @@ function _settlementType(ord) {
   return 'self_exit'; // event still active — user closed it via Exit Position
 }
 
+function _renderCommissionCard(tx) {
+  const notes = tx.notes || '';
+  const marketName = sanitize(notes.replace(/^.*\bin\b\s*/, '') || 'Unknown market');
+  const formulaLabel = notes.indexOf('Match commission') === 0 ? 'Earned on losses' : 'Earned on volume';
+  const amount = parseFloat(tx.amount || 0);
+  const date = tx.created_at
+    ? new Date(tx.created_at).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+  return `<div class="hist-item" style="border-left:3px solid #a78bfa;">
+    <div class="hist-left">
+      <div class="hist-market" style="color:#a78bfa;">${marketName}</div>
+      <div class="hist-outcome" style="color:#94a3b8;font-size:0.7rem;">${sanitize(formulaLabel)}</div>
+      <div style="font-size:0.6rem;color:#64748b;margin-top:2px;">${sanitize(notes)}</div>
+      <div class="hist-meta">
+        <span class="result-pill" style="background:rgba(167,139,250,0.1);color:#a78bfa;border:1px solid rgba(167,139,250,0.2);">COMMISSION</span>
+        <span class="hist-date">${date}</span>
+      </div>
+    </div>
+    <div class="hist-right">
+      <div class="hist-amount" style="color:#10b981;">+🪙${fmt(amount,2)}</div>
+    </div>
+  </div>`;
+}
+
+function _renderOrderCard(ord) {
+  const ev      = ord.events;
+  const oc      = ord.outcomes;
+  const isFancy = ev?.market_type === 'FANCY';
+  const stake   = parseFloat(ord.total_cost || 0);
+  const shares  = parseFloat(ord.shares || 0);
+  const stype   = _settlementType(ord);
+
+  let resultClass = 'open', resultLabel = 'OPEN', payout = '';
+
+  if (ord.status === 'OPEN') {
+    resultClass = 'open'; resultLabel = 'OPEN';
+    payout = `<div class="hist-payout" style="color:#818cf8;">Pot 🪙${fmt(shares,0)}</div>`;
+
+  } else if (stype === 'self_exit') {
+    const bookedPnl = shares - stake;
+    resultClass = bookedPnl >= 0 ? 'win' : 'lose';
+    resultLabel = 'CLOSED';
+    payout = `<div class="hist-payout" style="color:${bookedPnl>=0?'#10b981':'#ef4444'};">
+      ${bookedPnl>=0?'+':''}🪙${fmt(bookedPnl,2)}
+      <div style="font-size:0.62rem;color:#64748b;margin-top:1px;">Rcvd 🪙${fmt(shares,2)}</div>
+    </div>`;
+
+  } else if (stype === 'fancy_settled') {
+    const line = parseFloat(ord.line_at_bet||0), res = parseFloat(ev.result_value);
+    const won = (ord.bet_side==='YES' && res>=line) || (ord.bet_side==='NO' && res<line);
+    resultClass = won ? 'win' : 'lose';
+    resultLabel = won ? 'WON' : 'LOST';
+    payout = won
+      ? `<div class="hist-payout" style="color:#10b981;">+🪙${fmt(shares,0)}</div>`
+      : `<div class="hist-payout" style="color:#ef4444;">−🪙${fmt(stake,0)}</div>`;
+
+  } else if (stype === 'match_settled') {
+    const wtitle = ev?.winning_outcome;
+    let won;
+    if (ord.bet_side === 'LAGAI') won = wtitle != null && wtitle === ev?.rate_team;
+    else if (ord.bet_side === 'KHAI') won = wtitle != null && wtitle !== ev?.rate_team;
+    else won = oc?.title === wtitle;
+    const bp_ord = parseFloat(ord.price_per_share || 1);
+    const grossProfit = won ? (
+      ord.bet_side === 'LAGAI' ? stake * bp_ord :
+      ord.bet_side === 'KHAI'  ? stake / bp_ord :
+      stake * (bp_ord - 1)
+    ) : 0;
+    resultClass = won ? 'win' : 'lose';
+    resultLabel = won ? 'WON' : 'LOST';
+    payout = won
+      ? `<div class="hist-payout" style="color:#10b981;">+🪙${fmt(grossProfit,2)}</div>`
+      : `<div class="hist-payout" style="color:#ef4444;">−🪙${fmt(stake,0)}</div>`;
+
+  } else if (stype === 'void') {
+    resultClass = 'void'; resultLabel = 'VOID';
+    payout = `<div class="hist-payout" style="color:#64748b;">Refunded 🪙${fmt(stake,0)}</div>`;
+  }
+
+  const date = ord.created_at
+    ? new Date(ord.created_at).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+
+  return `
+  <div class="hist-item">
+    <div class="hist-left">
+      <div class="hist-market">${ev ? sanitize(ev.title) : 'Unknown'}</div>
+      <div class="hist-outcome">${oc ? sanitize(oc.title) : '—'}${isFancy&&ord.line_at_bet!=null?` @ line ${ord.line_at_bet}`:''}</div>
+      <div class="hist-meta">
+        <span class="result-pill ${resultClass}">${resultLabel}</span>
+        <span style="font-size:0.62rem;background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;color:#64748b;font-weight:600;">${ord.bet_side||'BACK'}</span>
+        <span style="font-size:0.6rem;color:#64748b;">@ ${parseFloat(ord.price_per_share||0).toFixed(2)}</span>
+        <span class="hist-date">${date}</span>
+      </div>
+    </div>
+    <div class="hist-right">
+      <div class="hist-amount">🪙${fmt(stake,0)}</div>
+      ${payout}
+    </div>
+  </div>`;
+}
+
 function renderHistoryTab() {
   const con = document.getElementById('historyContainer');
-  let orders = [...myOrders];
 
+  // ── COMMISSION-only filter ──────────────────────────────────────
+  if (historyFilter === 'COMMISSION') {
+    if (!myCommissions.length) {
+      con.innerHTML = `<div class="empty-state"><div class="es-icon">💜</div><div class="es-text">No commissions yet</div><div class="es-sub">Commissions are credited after market settlement</div></div>`;
+      return;
+    }
+    con.innerHTML = myCommissions.map(tx => _renderCommissionCard(tx)).join('');
+    return;
+  }
+
+  // ── Order filters ───────────────────────────────────────────────
+  let orders = [...myOrders];
   if (historyFilter === 'OPEN')     orders = orders.filter(o => o.status === 'OPEN');
   if (historyFilter === 'SETTLED')  orders = orders.filter(o => o.status === 'SETTLED');
   if (historyFilter === 'CLOSED')   orders = orders.filter(o => _settlementType(o) === 'self_exit');
   if (historyFilter === 'MATCH')    orders = orders.filter(o => o.events?.market_type !== 'FANCY');
   if (historyFilter === 'FANCY')    orders = orders.filter(o => o.events?.market_type === 'FANCY');
 
+  // ── ALL filter: interleave orders + commissions by date ─────────
+  if (historyFilter === 'ALL') {
+    const combined = [
+      ...orders.map(o => ({ type: 'order', date: o.created_at, data: o })),
+      ...myCommissions.map(tx => ({ type: 'commission', date: tx.created_at, data: tx }))
+    ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (!combined.length) {
+      con.innerHTML = `<div class="empty-state"><div class="es-icon">📋</div><div class="es-text">No bets here</div><div class="es-sub">Try a different filter</div></div>`;
+      return;
+    }
+
+    // Summary bar (orders only)
+    const closedOrds = orders.filter(o => o.status === 'SETTLED');
+    let summaryHtml = '';
+    if (closedOrds.length) {
+      summaryHtml = _buildSummaryBar(closedOrds);
+    }
+
+    con.innerHTML = summaryHtml + combined.map(item =>
+      item.type === 'commission' ? _renderCommissionCard(item.data) : _renderOrderCard(item.data)
+    ).join('');
+    return;
+  }
+
+  // ── Non-ALL, non-COMMISSION filters ─────────────────────────────
   if (!orders.length) {
     con.innerHTML = `<div class="empty-state"><div class="es-icon">📋</div><div class="es-text">No bets here</div><div class="es-sub">Try a different filter</div></div>`;
     return;
   }
 
-  // ── Summary bar for settled/closed orders ─────────────────────
   const closedOrds = orders.filter(o => o.status === 'SETTLED');
   let summaryHtml = '';
   if (closedOrds.length) {
-    let totalStaked = 0, totalReturn = 0;
-    closedOrds.forEach(o => {
-      const stype = _settlementType(o);
-      const stake  = parseFloat(o.total_cost || 0);
-      const shares = parseFloat(o.shares || 0);
-      totalStaked += stake;
-      if (stype === 'self_exit') {
-        totalReturn += shares; // shares = exitVal stored on exit
-      } else if (stype === 'fancy_settled') {
-        const line = parseFloat(o.line_at_bet||0), res = parseFloat(o.events.result_value);
-        const won = (o.bet_side==='YES' && res>=line) || (o.bet_side==='NO' && res<line);
-        if (won) totalReturn += shares;
-      } else if (stype === 'match_settled') {
-        const evData = o.events;
-        const wtitle = evData?.winning_outcome;
-        let mWon;
-        if (o.bet_side === 'LAGAI') mWon = wtitle != null && wtitle === evData?.rate_team;
-        else if (o.bet_side === 'KHAI') mWon = wtitle != null && wtitle !== evData?.rate_team;
-        else mWon = o.outcomes?.title === wtitle;
-        if (mWon) {
-          const r = parseFloat(o.price_per_share || 1);
-          totalReturn += stake + (o.bet_side === 'LAGAI' ? stake * r : o.bet_side === 'KHAI' ? stake / r : stake * (r - 1));
-        }
-      }
-    });
-    const netPnl = totalReturn - totalStaked;
-    summaryHtml = `<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-size:0.7rem;color:#64748b;font-weight:700;">${closedOrds.length} closed · Staked 🪙${fmt(totalStaked,0)}</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;font-weight:800;color:${netPnl>=0?'#10b981':'#ef4444'}">${netPnl>=0?'+':''}🪙${fmt(Math.abs(netPnl),2)}</div>
-    </div>`;
+    summaryHtml = _buildSummaryBar(closedOrds);
   }
 
-  con.innerHTML = summaryHtml + orders.map(ord => {
-    const ev      = ord.events;
-    const oc      = ord.outcomes;
-    const isFancy = ev?.market_type === 'FANCY';
-    const stake   = parseFloat(ord.total_cost || 0);
-    const shares  = parseFloat(ord.shares || 0);
-    const stype   = _settlementType(ord);
+  con.innerHTML = summaryHtml + orders.map(ord => _renderOrderCard(ord)).join('');
+}
 
-    let resultClass = 'open', resultLabel = 'OPEN', payout = '';
-
-    if (ord.status === 'OPEN') {
-      resultClass = 'open'; resultLabel = 'OPEN';
-      payout = `<div class="hist-payout" style="color:#818cf8;">Pot 🪙${fmt(shares,0)}</div>`;
-
-    } else if (stype === 'self_exit') {
-      // User closed this trade — shares = actual exit value received
-      const bookedPnl = shares - stake;
-      resultClass = bookedPnl >= 0 ? 'win' : 'lose';
-      resultLabel = 'CLOSED';
-      payout = `<div class="hist-payout" style="color:${bookedPnl>=0?'#10b981':'#ef4444'};">
-        ${bookedPnl>=0?'+':''}🪙${fmt(bookedPnl,2)}
-        <div style="font-size:0.62rem;color:#64748b;margin-top:1px;">Rcvd 🪙${fmt(shares,2)}</div>
-      </div>`;
-
+function _buildSummaryBar(closedOrds) {
+  let totalStaked = 0, totalReturn = 0;
+  closedOrds.forEach(o => {
+    const stype = _settlementType(o);
+    const stake  = parseFloat(o.total_cost || 0);
+    const shares = parseFloat(o.shares || 0);
+    totalStaked += stake;
+    if (stype === 'self_exit') {
+      totalReturn += shares;
     } else if (stype === 'fancy_settled') {
-      const line = parseFloat(ord.line_at_bet||0), res = parseFloat(ev.result_value);
-      const won = (ord.bet_side==='YES' && res>=line) || (ord.bet_side==='NO' && res<line);
-      resultClass = won ? 'win' : 'lose';
-      resultLabel = won ? 'WON' : 'LOST';
-      payout = won
-        ? `<div class="hist-payout" style="color:#10b981;">+🪙${fmt(shares,0)}</div>`
-        : `<div class="hist-payout" style="color:#ef4444;">−🪙${fmt(stake,0)}</div>`;
-
+      const line = parseFloat(o.line_at_bet||0), res = parseFloat(o.events.result_value);
+      const won = (o.bet_side==='YES' && res>=line) || (o.bet_side==='NO' && res<line);
+      if (won) totalReturn += shares;
     } else if (stype === 'match_settled') {
-      const wtitle = ev?.winning_outcome;
-      let won;
-      if (ord.bet_side === 'LAGAI') won = wtitle != null && wtitle === ev?.rate_team;
-      else if (ord.bet_side === 'KHAI') won = wtitle != null && wtitle !== ev?.rate_team;
-      else won = oc?.title === wtitle;
-      const bp_ord = parseFloat(ord.price_per_share || 1);
-      const grossProfit = won ? (
-        ord.bet_side === 'LAGAI' ? stake * bp_ord :
-        ord.bet_side === 'KHAI'  ? stake / bp_ord :
-        stake * (bp_ord - 1)
-      ) : 0;
-      resultClass = won ? 'win' : 'lose';
-      resultLabel = won ? 'WON' : 'LOST';
-      payout = won
-        ? `<div class="hist-payout" style="color:#10b981;">+🪙${fmt(grossProfit,2)}</div>`
-        : `<div class="hist-payout" style="color:#ef4444;">−🪙${fmt(stake,0)}</div>`;
-
-    } else if (stype === 'void') {
-      resultClass = 'void'; resultLabel = 'VOID';
-      payout = `<div class="hist-payout" style="color:#64748b;">Refunded 🪙${fmt(stake,0)}</div>`;
+      const evData = o.events;
+      const wtitle = evData?.winning_outcome;
+      let mWon;
+      if (o.bet_side === 'LAGAI') mWon = wtitle != null && wtitle === evData?.rate_team;
+      else if (o.bet_side === 'KHAI') mWon = wtitle != null && wtitle !== evData?.rate_team;
+      else mWon = o.outcomes?.title === wtitle;
+      if (mWon) {
+        const r = parseFloat(o.price_per_share || 1);
+        totalReturn += stake + (o.bet_side === 'LAGAI' ? stake * r : o.bet_side === 'KHAI' ? stake / r : stake * (r - 1));
+      }
     }
-
-    const date = ord.created_at
-      ? new Date(ord.created_at).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
-
-    return `
-    <div class="hist-item">
-      <div class="hist-left">
-        <div class="hist-market">${ev ? sanitize(ev.title) : 'Unknown'}</div>
-        <div class="hist-outcome">${oc ? sanitize(oc.title) : '—'}${isFancy&&ord.line_at_bet!=null?` @ line ${ord.line_at_bet}`:''}</div>
-        <div class="hist-meta">
-          <span class="result-pill ${resultClass}">${resultLabel}</span>
-          <span style="font-size:0.62rem;background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;color:#64748b;font-weight:600;">${ord.bet_side||'BACK'}</span>
-          <span style="font-size:0.6rem;color:#64748b;">@ ${parseFloat(ord.price_per_share||0).toFixed(2)}</span>
-          <span class="hist-date">${date}</span>
-        </div>
-      </div>
-      <div class="hist-right">
-        <div class="hist-amount">🪙${fmt(stake,0)}</div>
-        ${payout}
-      </div>
-    </div>`;
-  }).join('');
+  });
+  const netPnl = totalReturn - totalStaked;
+  return `<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+    <div style="font-size:0.7rem;color:#64748b;font-weight:700;">${closedOrds.length} closed · Staked 🪙${fmt(totalStaked,0)}</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;font-weight:800;color:${netPnl>=0?'#10b981':'#ef4444'}">${netPnl>=0?'+':''}🪙${fmt(Math.abs(netPnl),2)}</div>
+  </div>`;
 }
 
 // ── ACCOUNT ─────────────────────────────────────────────────────
