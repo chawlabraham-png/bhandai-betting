@@ -6,19 +6,27 @@
 <domain>
 ## Phase Boundary
 
-Match bet settlement correctly deducts commission as a percentage of client losses, with per-user rates and hierarchy enforcement. Commission is a P&L calculation factor — NOT a coin credit to clients.
+Match bet settlement correctly deducts commission as a percentage of client losses, with per-user rates and hierarchy enforcement. Commission IS coins credited to clients as an incentive — calculated per market, not per bet.
 
 </domain>
 
 <decisions>
 ## Implementation Decisions
 
-### Commission Model (CRITICAL — overrides earlier assumptions)
-- **D-01:** Commission is NOT a separate coin credit to clients. It is a calculation factor in agent P&L.
-- **D-02:** When a client loses on a match market, commission = match_commission% × net_loss_amount. This commission REDUCES the agent's net earnings from that client's loss.
-- **D-03:** Commission is calculated per-market settlement, NOT per individual bet.
-- **D-04:** Commission is recorded as a COMMISSION transaction for audit trail purposes, but does NOT credit the client's balance.
+### Commission Model (CORRECTED — final version)
+- **D-01:** Commission IS a coin credit to clients. It is an incentive/rebate added to client balance AFTER match settles (not per bet).
+- **D-02:** Commission = match_commission% × net_loss_amount. Only applies when client's net P&L is negative (losses only). Zero if client wins.
+- **D-03:** Commission is calculated per-market settlement, NOT per individual bet. All orders for a user on a market are netted first, then commission applied to the net loss.
+- **D-04:** Commission is recorded as a COMMISSION transaction in credit_transactions AND credits the client's balance.
 - **D-05:** Clients who won on a match market receive zero commission (commission is on losses only).
+- **D-06-NEW:** If client's match_commission is 0% → no commission is paid to that client. Only clients with commission rate > 0 receive the rebate.
+
+### Commission Cost Split
+- **D-20:** The cost of commission paid to a client is split between agent and admin based on partnership_share:
+  - Agent pays: commission × (partnership_share / 100)
+  - Admin pays: commission × (1 - partnership_share / 100)
+- **D-21:** If agent's partnership_share is 0% → admin bears 100% of the commission cost.
+- **D-22:** Some clients know about commission (negotiated rate > 0), some don't (rate = 0). This is by design — agents set rates per client.
 
 ### Accounting Hierarchy (CRITICAL — affects all fund flows)
 - **D-06:** Strict hierarchy: Admin → Agent → Client. ALL transactions for a client under an agent flow through the agent.
