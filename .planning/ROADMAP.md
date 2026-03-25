@@ -112,12 +112,12 @@ Plans:
   3. Agent can view per-client detail showing each client's total P&L, commission received, and the agent's net exposure per client
   4. During open markets, agent sees live P&L exposure updates via realtime subscriptions (not just settled data)
   5. Admin agent settlement cards display share-adjusted P&L figures (reflecting the agent's actual economics, not just raw chip flow)
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
+- [ ] 06-01-PLAN.md -- Agent P&L summary, per-market expandable detail, and per-client detail from settlement_results (APNL-07, APNL-08, APNL-09)
+- [ ] 06-02-PLAN.md -- Live exposure tracking in agent P&L and share-adjusted admin settlement cards (APNL-10, APNL-11)
 
 ### Phase 7: Agent Mobile UI
 **Goal**: Agents can use the full agent dashboard from mobile devices with a touch-friendly, readable layout
@@ -163,6 +163,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 3. Fancy Commission | 0/2 | Not started | - |
 | 4. Commission Visibility | 0/2 | Not started | - |
 | 5. Agent P&L Core | 0/2 | Not started | - |
-| 6. Agent P&L Views | 0/0 | Not started | - |
+| 6. Agent P&L Views | 0/2 | Not started | - |
 | 7. Agent Mobile UI | 0/0 | Not started | - |
 | 8. Code Modularization | 0/0 | Not started | - |
