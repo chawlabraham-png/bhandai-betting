@@ -13,7 +13,7 @@ This milestone adds correct financial economics to the Bhandai betting exchange:
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Infrastructure Safety** - Atomic balance mutations, directory consolidation, audit trail readiness
-- [ ] **Phase 2: Match Commission** - Commission on client losses at match settlement via PostgreSQL RPC
+- [x] **Phase 2: Match Commission** - Commission on client losses at match settlement via PostgreSQL RPC
 - [ ] **Phase 3: Fancy Commission** - Commission on total volume at fancy settlement via PostgreSQL RPC
 - [ ] **Phase 4: Commission Visibility** - Commission entries visible across admin, agent, and client views
 - [ ] **Phase 5: Agent P&L Core** - Agent share of client P&L and commission cost, calculated and persisted at settlement
@@ -51,7 +51,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md -- Atomic settle_match_market RPC with commission calculation (COMM-01, COMM-02, COMM-03, COMM-04, COMM-05)
-- [ ] 02-02-PLAN.md -- Admin.html integration: RPC call, reconciliation, and COMMISSION display (COMM-01, COMM-04, COMM-05)
+- [x] 02-02-PLAN.md -- Admin.html integration: RPC call, reconciliation, and COMMISSION display (COMM-01, COMM-04, COMM-05)
 
 ### Phase 3: Fancy Commission
 **Goal**: Fancy bet settlement correctly deducts commission as a percentage of total volume, regardless of win/loss
