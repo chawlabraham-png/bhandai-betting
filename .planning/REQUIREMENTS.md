@@ -15,11 +15,11 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Commission -- Match
 
-- [ ] **COMM-01**: Match commission calculated as % of client's net loss per market (zero if client wins)
-- [ ] **COMM-02**: Match commission uses client's `match_commission` rate from `betting_users` at settlement time
-- [ ] **COMM-03**: Match commission enforces hierarchy -- client rate capped at parent agent's rate at settlement
-- [ ] **COMM-04**: Match commission inserted as separate COMMISSION transaction in `credit_transactions` (not netted into SETTLEMENT payout)
-- [ ] **COMM-05**: Match commission credits client balance (positive entry -- rebate, not fee)
+- [x] **COMM-01**: Match commission calculated as % of client's net loss per market (zero if client wins)
+- [x] **COMM-02**: Match commission uses client's `match_commission` rate from `betting_users` at settlement time
+- [x] **COMM-03**: Match commission enforces hierarchy -- client rate capped at parent agent's rate at settlement
+- [x] **COMM-04**: Match commission inserted as separate COMMISSION transaction in `credit_transactions` (not netted into SETTLEMENT payout)
+- [x] **COMM-05**: Match commission credits client balance (positive entry -- rebate, not fee)
 
 ### Commission -- Fancy
 
@@ -113,11 +113,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-01 | Phase 1: Infrastructure Safety | Pending |
 | INFRA-02 | Phase 1: Infrastructure Safety | Complete |
 | INFRA-03 | Phase 1: Infrastructure Safety | Complete |
-| COMM-01 | Phase 2: Match Commission | Pending |
-| COMM-02 | Phase 2: Match Commission | Pending |
-| COMM-03 | Phase 2: Match Commission | Pending |
-| COMM-04 | Phase 2: Match Commission | Pending |
-| COMM-05 | Phase 2: Match Commission | Pending |
+| COMM-01 | Phase 2: Match Commission | Complete |
+| COMM-02 | Phase 2: Match Commission | Complete |
+| COMM-03 | Phase 2: Match Commission | Complete |
+| COMM-04 | Phase 2: Match Commission | Complete |
+| COMM-05 | Phase 2: Match Commission | Complete |
 | COMM-06 | Phase 3: Fancy Commission | Pending |
 | COMM-07 | Phase 3: Fancy Commission | Pending |
 | COMM-08 | Phase 3: Fancy Commission | Pending |

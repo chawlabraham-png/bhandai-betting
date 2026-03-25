@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to plan
-stopped_at: Completed 01-02-PLAN.md (atomic balance settlement RPC) -- Phase 01 complete
-last_updated: "2026-03-25T12:07:04.784Z"
+status: Ready to execute
+stopped_at: Completed 02-01-PLAN.md (atomic settle_match_market RPC with commission)
+last_updated: "2026-03-25T13:37:16.614Z"
 progress:
   total_phases: 8
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** Accurate commission deduction and P&L reporting across the agent-client hierarchy
-**Current focus:** Phase 01 — infrastructure-safety
+**Current focus:** Phase 02 — match-commission
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
+Phase: 02 (match-commission) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Plan: Not started
 *Updated after each plan completion*
 | Phase 01 P01 | 15min | 3 tasks | 8 files |
 | Phase 01 P02 | 12min | 3 tasks | 2 files |
+| Phase 02 P01 | 15min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,10 @@ Recent decisions affecting current work:
 - [Phase 01]: SECURITY INVOKER (default) for adjust_balance RPC -- no privilege escalation needed
 - [Phase 01]: No balance floor constraint -- negative balances valid in exposure-based accounting
 - [Phase 01]: Used balErr variable name to avoid shadowing outer error variables in settlement try/catch
+- [Phase 02]: SECURITY INVOKER for settle_match_market RPC -- consistent with Phase 1 adjust_balance pattern
+- [Phase 02]: Inline balance updates inside PL/pgSQL instead of nested adjust_balance RPC call
+- [Phase 02]: FLOOR rounding for commission credits -- gives less to client, favoring admin
+- [Phase 02]: Commission gating independent of settle_amt -- pure losers still get commission (Pitfall #6)
 
 ### Pending Todos
 
@@ -78,6 +83,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-25T12:00:00.000Z
-Stopped at: Completed 01-02-PLAN.md (atomic balance settlement RPC) -- Phase 01 complete
+Last session: 2026-03-25T13:37:16.611Z
+Stopped at: Completed 02-01-PLAN.md (atomic settle_match_market RPC with commission)
 Resume file: None

@@ -50,7 +50,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- Atomic settle_match_market RPC with commission calculation (COMM-01, COMM-02, COMM-03, COMM-04, COMM-05)
+- [x] 02-01-PLAN.md -- Atomic settle_match_market RPC with commission calculation (COMM-01, COMM-02, COMM-03, COMM-04, COMM-05)
 - [ ] 02-02-PLAN.md -- Admin.html integration: RPC call, reconciliation, and COMMISSION display (COMM-01, COMM-04, COMM-05)
 
 ### Phase 3: Fancy Commission
@@ -159,7 +159,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Safety | 2/2 | Complete | 2026-03-25 |
-| 2. Match Commission | 0/2 | Planned | - |
+| 2. Match Commission | 1/2 | In Progress | - |
 | 3. Fancy Commission | 0/0 | Not started | - |
 | 4. Commission Visibility | 0/0 | Not started | - |
 | 5. Agent P&L Core | 0/0 | Not started | - |
