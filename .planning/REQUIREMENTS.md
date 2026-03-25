@@ -10,8 +10,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 ### Prerequisites
 
 - [ ] **INFRA-01**: Settlement balance mutations use atomic PostgreSQL RPC (`adjust_balance`) instead of client-side read-modify-write
-- [ ] **INFRA-02**: Source directories consolidated to single working directory (eliminate copy workflow)
-- [ ] **INFRA-03**: `notes` column verified on `credit_transactions` for audit trail data
+- [x] **INFRA-02**: Source directories consolidated to single working directory (eliminate copy workflow)
+- [x] **INFRA-03**: `notes` column verified on `credit_transactions` for audit trail data
 
 ### Commission -- Match
 
@@ -111,8 +111,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INFRA-01 | Phase 1: Infrastructure Safety | Pending |
-| INFRA-02 | Phase 1: Infrastructure Safety | Pending |
-| INFRA-03 | Phase 1: Infrastructure Safety | Pending |
+| INFRA-02 | Phase 1: Infrastructure Safety | Complete |
+| INFRA-03 | Phase 1: Infrastructure Safety | Complete |
 | COMM-01 | Phase 2: Match Commission | Pending |
 | COMM-02 | Phase 2: Match Commission | Pending |
 | COMM-03 | Phase 2: Match Commission | Pending |

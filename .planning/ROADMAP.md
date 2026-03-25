@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Directory consolidation and notes column verification (INFRA-02, INFRA-03)
+- [x] 01-01-PLAN.md -- Directory consolidation and notes column verification (INFRA-02, INFRA-03)
 - [ ] 01-02-PLAN.md -- Atomic adjust_balance RPC and settlement code migration (INFRA-01)
 
 ### Phase 2: Match Commission
@@ -158,7 +158,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Safety | 0/2 | Planning complete | - |
+| 1. Infrastructure Safety | 1/2 | In Progress | - |
 | 2. Match Commission | 0/0 | Not started | - |
 | 3. Fancy Commission | 0/0 | Not started | - |
 | 4. Commission Visibility | 0/0 | Not started | - |
