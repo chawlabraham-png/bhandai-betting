@@ -481,7 +481,11 @@
     var ocs  = allOutcomes.filter(function (o) { return o.event_id === ev.id; });
     var yesOc = ocs.find(function (o) { return o.is_yes_outcome; }) || ocs[0];
     var noOc  = ocs.find(function (o) { return !o.is_yes_outcome; }) || ocs[1];
-    var line  = parseFloat(ev.line_value != null ? ev.line_value : (ev.base_line != null ? ev.base_line : 0));
+    var rawLine = parseFloat(ev.line_value != null ? ev.line_value : (ev.base_line != null ? ev.base_line : 0));
+    var gap   = parseInt(ev.fancy_gap || 1);
+    var lineNo  = gap === 1 ? Math.floor(rawLine) : Math.round(rawLine) - 1;
+    var lineYes = gap === 1 ? Math.ceil(rawLine)  : Math.round(rawLine) + 1;
+    var line  = rawLine; // keep for bet placement
     var bp    = yesOc ? parseFloat(yesOc.back_price || 1.9).toFixed(2) : '1.90';
     var susp  = ev.status === 'SUSPENDED';
     var openBetsHere = myOrders.filter(function (o) { return o.event_id === ev.id && o.status === 'OPEN'; }).length;
@@ -503,27 +507,26 @@
     } else {
       var yesBtn = '';
       if (yesOc) {
-        yesBtn = '<div class="fc-yes-btn" data-oc="' + yesOc.id + '" onclick="openFancyBetSlip(\'' + ev.id + '\',\'' + yesOc.id + '\',\'YES\',' + bp + ',' + line + ',\'' + sanitize(ev.title).replace(/'/g, "\\'") + '\')">' +
+        yesBtn = '<div class="fc-yes-btn" data-oc="' + yesOc.id + '" onclick="openFancyBetSlip(\'' + ev.id + '\',\'' + yesOc.id + '\',\'YES\',' + bp + ',' + line + ',' + lineNo + ',' + lineYes + ',\'' + sanitize(ev.title).replace(/'/g, "\\'") + '\')">' +
           '<div class="fc-yn-label">YES ✓</div>' +
           '<div class="fc-yn-odds">' + bp + '</div>' +
-          '<div class="fc-yn-desc">&ge; ' + line + '</div>' +
+          '<div class="fc-yn-desc">&ge; ' + lineYes + '</div>' +
         '</div>';
       } else {
         yesBtn = '<div style="font-size:0.72rem;color:#475569;text-align:center;padding:10px;">No rates</div>';
       }
       var noBtn = '';
       if (noOc) {
-        noBtn = '<div class="fc-no-btn" data-oc="' + noOc.id + '" onclick="openFancyBetSlip(\'' + ev.id + '\',\'' + noOc.id + '\',\'NO\',' + bp + ',' + line + ',\'' + sanitize(ev.title).replace(/'/g, "\\'") + '\')">' +
+        noBtn = '<div class="fc-no-btn" data-oc="' + noOc.id + '" onclick="openFancyBetSlip(\'' + ev.id + '\',\'' + noOc.id + '\',\'NO\',' + bp + ',' + line + ',' + lineNo + ',' + lineYes + ',\'' + sanitize(ev.title).replace(/'/g, "\\'") + '\')">' +
           '<div class="fc-yn-label">NO ✗</div>' +
           '<div class="fc-yn-odds">' + bp + '</div>' +
-          '<div class="fc-yn-desc">&lt; ' + line + '</div>' +
+          '<div class="fc-yn-desc">&le; ' + lineNo + '</div>' +
         '</div>';
       }
       bodyHtml = '' +
       '<div class="fc-body">' +
         '<div class="fc-line-wrap">' +
-          '<div class="fc-line-label">Line</div>' +
-          '<div class="fc-line-val">' + line + '</div>' +
+          '<div class="fc-line-label">' + lineNo + ' / ' + lineYes + '</div>' +
           '<div style="font-size:0.58rem;color:#64748b;margin-top:1px;">runs</div>' +
         '</div>' +
         '<div class="fc-yn-btns">' +
@@ -610,19 +613,19 @@
   }
   Client.openBetSlip = openBetSlip;
 
-  function openFancyBetSlip(eventId, outcomeId, side, backPrice, line, marketTitle) {
+  function openFancyBetSlip(eventId, outcomeId, side, backPrice, line, lineNo, lineYes, marketTitle) {
     var ev = allEvents.find(function (e) { return e.id === eventId; });
     if (!ev || ev.status === 'SUSPENDED') return;
     var bp = parseFloat(backPrice);
-    bsState = { eventId: eventId, outcomeId: outcomeId, side: side, backPrice: bp, isFancy: true, line: parseFloat(line), oddsAtOpen: bp };
+    bsState = { eventId: eventId, outcomeId: outcomeId, side: side, backPrice: bp, isFancy: true, line: parseFloat(line), lineNo: parseInt(lineNo), lineYes: parseInt(lineYes), oddsAtOpen: bp };
     document.getElementById('bsMarket').textContent  = marketTitle || ev.title;
-    document.getElementById('bsOutcome').textContent = side === 'YES' ? 'YES -- if >= ' + line + ' runs' : 'NO -- if < ' + line + ' runs';
+    document.getElementById('bsOutcome').textContent = side === 'YES' ? 'YES -- if >= ' + lineYes + ' runs' : 'NO -- if <= ' + lineNo + ' runs';
     var badge = document.getElementById('bsSideBadge');
     badge.textContent = side; badge.className = 'bs-sel-badge ' + side.toLowerCase();
     document.getElementById('bsOddsLabel').textContent = 'Odds';
     document.getElementById('bsOddsVal').textContent   = bp.toFixed(2);
     document.getElementById('bsFancyInfo').style.display = 'block';
-    document.getElementById('bsLine').textContent = line;
+    document.getElementById('bsLine').textContent = lineNo + ' / ' + lineYes;
     document.getElementById('bsStaleWarn').style.display = 'none';
     document.getElementById('bsHedgeBanner').style.display = 'none';
     _hideBetSlipSuspended();
@@ -904,7 +907,11 @@
         total_cost: stake,
         status: 'OPEN'
       };
-      if (bsState.isFancy && bsState.line != null) ord.line_at_bet = bsState.line;
+      if (bsState.isFancy && bsState.line != null) {
+        ord.line_at_bet = bsState.line;
+        ord.line_no_at_bet = bsState.lineNo;
+        ord.line_yes_at_bet = bsState.lineYes;
+      }
 
       var ordResult = await db.from('orders').insert(ord);
       if (ordResult.error) throw new Error(ordResult.error.message);
@@ -1013,26 +1020,13 @@
     var totStaked = openOrds.reduce(function (s,o) { return s + parseFloat(o.total_cost||0); }, 0);
     var totPotWin = openOrds.reduce(function (s,o) { return s + parseFloat(o.shares||0); }, 0);
 
-    // Live unrealised P&L using correct rate source per bet type
-    var netUnrealisedPnl = 0;
-    openOrds.forEach(function (o) {
-      if (o.events && o.events.market_type !== 'FANCY') {
-        netUnrealisedPnl += _calcOrderPnl(o).pnl;
-      }
-    });
-
     document.getElementById('portOpenCount').textContent = openOrds.length;
     document.getElementById('portStaked').textContent    = '🪙 ' + fmt(totStaked,0);
     document.getElementById('portPotWin').textContent    = '🪙 ' + fmt(totPotWin,0);
+
+    // Net Position summary (not P&L — P&L is only after settlement)
     var pnlEl = document.getElementById('portNetPnl');
-    if (pnlEl) {
-      if (openOrds.some(function (o) { return o.events && o.events.market_type !== 'FANCY'; })) {
-        pnlEl.textContent = (netUnrealisedPnl>=0?'+':'') + '🪙' + fmt(Math.abs(netUnrealisedPnl),0);
-        pnlEl.style.color = netUnrealisedPnl > 0.5 ? '#10b981' : netUnrealisedPnl < -0.5 ? '#ef4444' : '#94a3b8';
-      } else {
-        pnlEl.textContent = '---'; pnlEl.style.color = '#94a3b8';
-      }
-    }
+    if (pnlEl) { pnlEl.textContent = '---'; pnlEl.style.color = '#94a3b8'; }
     var sumEl = document.getElementById('portfolioSummary');
     sumEl.style.display = openOrds.length ? 'grid' : 'none';
 
@@ -1042,32 +1036,99 @@
       return;
     }
 
-    // Group by market
+    // Group by event — show per-event POSITION (not per-order P&L)
     var groups = {};
     orders.forEach(function (o) {
-      var key = o.event_id || (o.events ? o.events.title : null) || 'unknown';
-      if (!groups[key]) groups[key] = { title: (o.events ? o.events.title : null) || 'Unknown Market', orders: [], pnl: 0 };
-      groups[key].orders.push(o);
-      // unrealised P&L for open match bets using correct rate source
-      if (o.status === 'OPEN' && o.events && o.events.market_type !== 'FANCY') {
-        groups[key].pnl += _calcOrderPnl(o).pnl;
+      var key = o.event_id || 'unknown';
+      if (!groups[key]) {
+        var ev = o.events || {};
+        groups[key] = { eventId: key, title: ev.title || 'Unknown Market', orders: [], ev: ev, isSettled: ev.status === 'SETTLED' || ev.status === 'VOID', isFancy: ev.market_type === 'FANCY' };
       }
+      groups[key].orders.push(o);
     });
 
     con.innerHTML = Object.values(groups).map(function (g) {
-      var pnlStr = g.pnl !== 0
-        ? '<span class="port-group-pnl" style="color:' + (g.pnl>0?'#10b981':'#ef4444') + '">' + (g.pnl>0?'+':'') + '🪙' + fmt(Math.abs(g.pnl),2) + '</span>'
-        : '';
-      return '<div class="port-group">' +
-        '<div class="port-group-head"><span>' + sanitize(g.title) + '</span>' + pnlStr + '</div>' +
-        g.orders.map(renderPosCard).join('') +
-      '</div>';
+      return renderEventPositionCard(g);
     }).join('');
 
-    // Initialize exit previews for all rendered open non-fancy bets
+    // Initialize exit previews for open non-fancy bets
     setTimeout(function () {
       openOrds.filter(function (o) { return o.events && o.events.market_type !== 'FANCY'; }).forEach(function (o) { updateExitPreview(o.id); });
     }, 50);
+  }
+
+  function renderEventPositionCard(g) {
+    var html = '<div class="port-group">';
+    var statusBadge = g.isSettled
+      ? '<span style="font-size:0.6rem;background:rgba(16,185,129,0.15);color:#10b981;padding:2px 6px;border-radius:4px;font-weight:700;">SETTLED</span>'
+      : '<span style="font-size:0.6rem;background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 6px;border-radius:4px;font-weight:700;">OPEN</span>';
+
+    html += '<div class="port-group-head"><span>' + sanitize(g.title) + '</span>' + statusBadge + '</div>';
+
+    if (g.isSettled) {
+      // REALIZED P&L — only now we use the word "P&L"
+      var realizedPnl = 0;
+      g.orders.forEach(function (o) {
+        var stake = parseFloat(o.total_cost || 0);
+        var payout = parseFloat(o.shares || 0);
+        if (o.status === 'SETTLED') {
+          // Check if this order won
+          var ev = o.events || g.ev;
+          var won = false;
+          if (g.isFancy) {
+            var lineNo = parseFloat(o.line_no_at_bet || o.line_at_bet || 0);
+            var lineYes = parseFloat(o.line_yes_at_bet || o.line_at_bet || 0);
+            var res = parseFloat(ev.result_value || 0);
+            won = (o.bet_side === 'YES' && res >= lineYes) || (o.bet_side === 'NO' && res <= lineNo);
+          } else {
+            won = o.outcomes && o.outcomes.is_winner;
+          }
+          realizedPnl += won ? (payout - stake) : -stake;
+        }
+      });
+      var pnlColor = realizedPnl > 0.01 ? '#10b981' : realizedPnl < -0.01 ? '#ef4444' : '#94a3b8';
+      html += '<div style="padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">';
+      html += '<span style="font-size:0.78rem;color:#64748b;">Realized P&L</span>';
+      html += '<span style="font-family:\'JetBrains Mono\',monospace;font-weight:700;color:' + pnlColor + ';">' + (realizedPnl>=0?'+':'') + '🪙' + fmt(Math.abs(realizedPnl),2) + '</span>';
+      html += '</div>';
+    } else if (!g.isFancy) {
+      // MATCH POSITION — show per-outcome scenario, never say "P&L"
+      var book = BX.calcEventBook(g.eventId, myOrders, allOutcomes, allEvents, 'ALL');
+      if (book) {
+        var fwColor = book.favWins > 0.01 ? '#10b981' : book.favWins < -0.01 ? '#ef4444' : '#94a3b8';
+        var flColor = book.favLoses > 0.01 ? '#10b981' : book.favLoses < -0.01 ? '#ef4444' : '#94a3b8';
+        html += '<div style="padding:8px 12px;">';
+        html += '<div style="font-size:0.68rem;color:#475569;margin-bottom:6px;font-weight:600;">Position</div>';
+        html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">';
+        html += '<span style="font-size:0.8rem;color:#e2e8f0;">' + sanitize(book.favTeam) + '</span>';
+        html += '<span style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:0.85rem;color:' + fwColor + ';">' + (book.favWins>=0?'+':'') + '🪙' + fmt(Math.abs(book.favWins),0) + '</span>';
+        html += '</div>';
+        html += '<div style="display:flex;justify-content:space-between;">';
+        html += '<span style="font-size:0.8rem;color:#e2e8f0;">' + sanitize(book.otherTeam) + '</span>';
+        html += '<span style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:0.85rem;color:' + flColor + ';">' + (book.favLoses>=0?'+':'') + '🪙' + fmt(Math.abs(book.favLoses),0) + '</span>';
+        html += '</div>';
+        html += '</div>';
+      }
+    } else {
+      // FANCY POSITION — show what happens per scenario
+      var totalVolume = 0;
+      g.orders.filter(function(o) { return o.status === 'OPEN'; }).forEach(function(o) { totalVolume += parseFloat(o.total_cost||0); });
+      if (totalVolume > 0) {
+        html += '<div style="padding:8px 12px;">';
+        html += '<div style="font-size:0.68rem;color:#475569;margin-bottom:4px;font-weight:600;">Position</div>';
+        html += '<div style="font-size:0.8rem;color:#94a3b8;">Volume: 🪙' + fmt(totalVolume,0) + '</div>';
+        html += '</div>';
+      }
+    }
+
+    // Individual orders (collapsed, expandable)
+    html += '<div style="border-top:1px solid #1e293b;padding:4px 12px 8px;">';
+    html += '<div style="font-size:0.65rem;color:#475569;margin-bottom:4px;">' + g.orders.length + ' bet(s)</div>';
+    g.orders.forEach(function (o) { html += renderPosCard(o); });
+    html += '</div>';
+
+    html += '</div>';
+    return html;
   }
 
   function renderPosCard(ord) {
@@ -1079,11 +1140,8 @@
     var potPay  = parseFloat(ord.shares || 0);
     var bp      = parseFloat(ord.price_per_share || 1);
 
-    // Current P&L for match markets -- uses correct rate source per bet type
+    // Current rate for exit preview (no "P&L" label for open orders)
     var curBP   = (isOpen && !isFancy) ? _getLiveRate(ord) : bp;
-    var uPnl    = (isOpen && !isFancy) ? _calcOrderPnl(ord).pnl : null;
-    var pnlCls  = uPnl == null ? 'flat' : uPnl > 0.01 ? 'up' : uPnl < -0.01 ? 'down' : 'flat';
-    var pnlStr  = uPnl != null ? (uPnl>=0?'+':'') + '🪙' + fmt(Math.abs(uPnl),2) : '';
 
     var sideCls = (ord.bet_side || 'BACK').toLowerCase();
 
@@ -1099,15 +1157,24 @@
     var html = '<div class="pos-card" id="posCard_' + ord.id + '">';
     html += '<div class="pos-header" onclick="toggleExpand(\'' + ord.id + '\',' + (isOpen&&!isFancy) + ')">';
     html += '<div class="pos-market">' + (ev?sanitize(ev.title):'Unknown market') + '</div>';
-    html += '<div class="pos-outcome">' + (oc?sanitize(oc.title):'---') + (isFancy&&ord.line_at_bet!=null?' @ line '+ord.line_at_bet:'') + '</div>';
+    var lineDisp = '';
+    if (isFancy && ord.line_no_at_bet != null && ord.line_yes_at_bet != null) {
+      lineDisp = ' @ ' + ord.line_no_at_bet + '/' + ord.line_yes_at_bet;
+    } else if (isFancy && ord.line_at_bet != null) {
+      lineDisp = ' @ line ' + ord.line_at_bet;
+    }
+    html += '<div class="pos-outcome">' + (oc?sanitize(oc.title):'---') + lineDisp + '</div>';
     html += '<div class="pos-meta">';
     html += '<span class="pos-badge ' + sideCls + '">' + (ord.bet_side||'BACK') + '</span>';
     if (isFancy) html += '<span class="pos-badge fancy">Fancy</span>';
     html += '<span class="pos-stake">🪙' + fmt(stake,0) + '</span>';
-    if (pnlStr) html += '<span class="pos-pnl ' + pnlCls + '">' + pnlStr + '</span>';
     html += '</div>';
-    if (isFancy && ord.line_at_bet!=null) {
-      html += '<div class="pos-fancy-line">' + (ord.bet_side==='YES' ? 'Wins if result >= '+ord.line_at_bet : 'Wins if result < '+ord.line_at_bet) + '</div>';
+    if (isFancy) {
+      if (ord.line_no_at_bet != null && ord.line_yes_at_bet != null) {
+        html += '<div class="pos-fancy-line">' + (ord.bet_side==='YES' ? 'Wins if result >= '+ord.line_yes_at_bet : 'Wins if result <= '+ord.line_no_at_bet) + '</div>';
+      } else if (ord.line_at_bet != null) {
+        html += '<div class="pos-fancy-line">' + (ord.bet_side==='YES' ? 'Wins if result >= '+ord.line_at_bet : 'Wins if result < '+ord.line_at_bet) + '</div>';
+      }
     }
     html += settleTag;
     html += '</div>';
@@ -1129,7 +1196,7 @@
       html += '<div class="exit-preview" id="exitPreview_' + ord.id + '">';
       html += '<div class="exit-prev-item"><div class="ep-lbl">Win Position</div><div class="ep-val" id="epExit_' + ord.id + '">---</div></div>';
       html += '<div class="exit-prev-item"><div class="ep-lbl">Exit Value</div><div class="ep-val green" id="epVal_' + ord.id + '">---</div></div>';
-      html += '<div class="exit-prev-item"><div class="ep-lbl">P&amp;L</div><div class="ep-val" id="epPnl_' + ord.id + '">---</div></div>';
+      html += '<div class="exit-prev-item"><div class="ep-lbl">Return</div><div class="ep-val" id="epPnl_' + ord.id + '">---</div></div>';
       html += '</div>';
       html += '<button class="exit-btn" onclick="exitPosition(\'' + ord.id + '\')">Exit Position &rarr;</button>';
       html += '</div>';

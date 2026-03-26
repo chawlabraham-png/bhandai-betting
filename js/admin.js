@@ -543,7 +543,7 @@ function renderMarkets() {
 
     // Outcome pills: match shows khai/lagai, fancy shows line
     const outcomePills = isFancy
-      ? `<span style="background:#0f172a;border:1px solid #334155;padding:2px 8px;border-radius:4px;font-size:0.72rem;">Line: <strong style="color:#f59e0b;">${ev.line_value ?? ev.base_line ?? '—'}</strong></span>
+      ? (() => { const lv = parseFloat(ev.line_value ?? ev.base_line ?? 0); const g = parseInt(ev.fancy_gap || 1); const ln = g===1?Math.floor(lv):Math.round(lv)-1; const ly = g===1?Math.ceil(lv):Math.round(lv)+1; return `<span style="background:#0f172a;border:1px solid #334155;padding:2px 8px;border-radius:4px;font-size:0.72rem;"><strong style="color:#ef4444;">${ln}</strong> / <strong style="color:#10b981;">${ly}</strong></span>`; })()
          <span style="background:#0f172a;border:1px solid #334155;padding:2px 8px;border-radius:4px;font-size:0.72rem;margin-left:4px;">${fancyTypeLabel(ev.fancy_type)}</span>`
       : (() => {
           const l = parseFloat(ev.lagai_rate ?? 0.50).toFixed(2);
@@ -1411,10 +1411,16 @@ async function updateFancyPreview() {
 
   let winners = 0, losers = 0, totalPayout = 0;
   orders.forEach(ord => {
-    const line = parseFloat(ord.line_at_bet || 0);
+    const lineNo = parseFloat(ord.line_no_at_bet || ord.line_at_bet || 0);
+    const lineYes = parseFloat(ord.line_yes_at_bet || ord.line_at_bet || 0);
     const stake = parseFloat(ord.total_cost || 0);
     const bp = parseFloat(ord.price_per_share || 1.9);
-    const isWin = (ord.bet_side === 'YES' && resultVal >= line) || (ord.bet_side === 'NO' && resultVal < line);
+    let isWin;
+    if (ord.line_no_at_bet != null && ord.line_yes_at_bet != null) {
+      isWin = (ord.bet_side === 'YES' && resultVal >= lineYes) || (ord.bet_side === 'NO' && resultVal <= lineNo);
+    } else {
+      isWin = (ord.bet_side === 'YES' && resultVal >= lineNo) || (ord.bet_side === 'NO' && resultVal < lineNo);
+    }
     if (isWin) { winners++; totalPayout += stake * bp; }
     else losers++;
   });
@@ -2095,13 +2101,16 @@ async function runSimTick(eventId) {
   if (!ocs.length) return;
 
   if (ev.market_type === 'FANCY') {
-    // Move line ±3 (random walk, min 1)
-    const delta = (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 4));
+    // Move line ±1-3 runs (random walk), random gap (1 or 2)
+    const delta = (Math.random() > 0.5 ? 1 : -1) * (1 + Math.floor(Math.random() * 3));
     const currentLine = parseFloat(ev.line_value || ev.base_line || 50);
-    const newLine = Math.max(1, currentLine + delta);
-    await sb.from('events').update({ line_value: newLine }).eq('id', eventId);
+    const gap = Math.random() > 0.5 ? 1 : 2; // randomly pick 1 or 2 run gap
+    // line_value is midpoint: gap=1 → 44.5 (shows 44/45), gap=2 → 45 (shows 44/46)
+    const baseLine = Math.max(1, Math.round(currentLine) + delta);
+    const newLine = gap === 1 ? baseLine + 0.5 : baseLine;
+    await sb.from('events').update({ line_value: newLine, fancy_gap: gap }).eq('id', eventId);
     const evIdx = allEvents.findIndex(e => e.id === eventId);
-    if (evIdx >= 0) allEvents[evIdx].line_value = newLine;
+    if (evIdx >= 0) { allEvents[evIdx].line_value = newLine; allEvents[evIdx].fancy_gap = gap; }
     renderMarkets();
   } else {
     // MATCH market: momentum random walk on lagai_rate (0.01–0.89)

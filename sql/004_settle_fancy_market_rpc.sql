@@ -145,9 +145,17 @@ BEGIN
       -- Accumulate volume for ALL orders (per D-02, D-15 -- commission base)
       v_total_volume := v_total_volume + v_order.total_cost;
 
-      -- Per-order win determination (per D-13 -- uses order's line_at_bet, NOT event line_value)
-      v_is_win := (v_order.bet_side = 'YES' AND p_result_value >= v_order.line_at_bet)
-               OR (v_order.bet_side = 'NO'  AND p_result_value < v_order.line_at_bet);
+      -- Per-order win determination with gap support:
+      -- If line_no_at_bet/line_yes_at_bet set: YES wins if result >= line_yes, NO wins if result <= line_no
+      -- House wins if result falls in the gap between line_no and line_yes
+      -- Fallback: old logic using line_at_bet for pre-gap orders
+      IF v_order.line_no_at_bet IS NOT NULL AND v_order.line_yes_at_bet IS NOT NULL THEN
+        v_is_win := (v_order.bet_side = 'YES' AND p_result_value >= v_order.line_yes_at_bet)
+                 OR (v_order.bet_side = 'NO'  AND p_result_value <= v_order.line_no_at_bet);
+      ELSE
+        v_is_win := (v_order.bet_side = 'YES' AND p_result_value >= v_order.line_at_bet)
+                 OR (v_order.bet_side = 'NO'  AND p_result_value < v_order.line_at_bet);
+      END IF;
 
       IF v_is_win THEN
         -- Per D-14: winner payout = stake * back_price (stored as price_per_share)
