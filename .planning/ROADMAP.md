@@ -148,7 +148,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 08-01-PLAN.md -- Shared utilities (lib/utils.js) and CSS extraction (css/shared.css + role CSS) (CODE-01, CODE-05, CODE-06)
+- [x] 08-01-PLAN.md -- Shared utilities (lib/utils.js) and CSS extraction (css/shared.css + role CSS) (CODE-01, CODE-05, CODE-06)
 - [ ] 08-02-PLAN.md -- Commission/P&L libraries and client.js extraction (CODE-02, CODE-03, CODE-04, CODE-06, CODE-07)
 - [ ] 08-03-PLAN.md -- Agent.js and admin.js extraction, HTML reduction complete (CODE-04, CODE-06, CODE-07)
 
