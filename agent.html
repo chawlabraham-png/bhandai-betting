@@ -449,6 +449,31 @@
       <div class="page-header">
         <div><div class="page-title">P&amp;L Report</div><div class="page-sub">Commission &amp; performance analysis</div></div>
       </div>
+      <div class="card" id="pnlLiveSection" style="margin-bottom:20px;display:none;">
+        <div class="card-header">
+          <div class="card-title">Live Exposure <span class="badge" style="background:rgba(251,191,36,0.15);color:#fbbf24;font-size:0.7rem;margin-left:8px;">ESTIMATED</span></div>
+        </div>
+        <div class="stats-grid stats-grid-3" style="margin-bottom:0;">
+          <div class="stat-card" style="border-left:3px solid #fbbf24;">
+            <div class="stat-label">Open Market Exposure</div>
+            <div class="stat-value" style="color:#fbbf24;">&#x1FA99; <span id="pnlLiveExposure">0</span></div>
+            <div class="stat-change">Potential payout on open orders</div>
+          </div>
+          <div class="stat-card" style="border-left:3px solid #fbbf24;">
+            <div class="stat-label">Est. Agent Exposure</div>
+            <div class="stat-value" style="color:#fbbf24;">&#x1FA99; <span id="pnlLiveAgentExposure">0</span></div>
+            <div class="stat-change">At <span id="pnlLiveSharePct">0</span>% partnership share</div>
+          </div>
+          <div class="stat-card" style="border-left:3px solid #fbbf24;">
+            <div class="stat-label">Open Markets</div>
+            <div class="stat-value" style="color:#fbbf24;"><span id="pnlLiveMarkets">0</span></div>
+            <div class="stat-change">Markets with active client bets</div>
+          </div>
+        </div>
+      </div>
+      <div class="page-header" style="margin-top:8px;">
+        <div><div class="card-title">Settled P&amp;L <span class="badge" style="background:rgba(16,185,129,0.15);color:#10b981;font-size:0.7rem;margin-left:8px;">ACTUAL</span></div></div>
+      </div>
       <div class="stats-grid stats-grid-4">
         <div class="stat-card accent-purple">
           <div class="stat-label">Total Client P&amp;L</div>
@@ -1197,6 +1222,28 @@ function renderBetLog() {
 }
 
 function renderPnL() {
+  // ── Live Exposure (D-08, D-09, D-10) ──
+  const openEvents = allEvents.filter(e => e.status === 'OPEN' || e.status === 'SUSPENDED');
+  const openEventIds = new Set(openEvents.map(e => e.id));
+  const openOutcomeIds = new Set(allOutcomes.filter(o => openEventIds.has(o.event_id)).map(o => o.id));
+  const openOrds = allOrders.filter(o => o.status === 'OPEN' && openOutcomeIds.has(o.outcome_id));
+
+  // Total client exposure on open markets = sum of shares (potential payout)
+  const liveExposure = openOrds.reduce((s, o) => s + parseFloat(o.shares || 0), 0);
+  const pShare = parseFloat(currentUser.partnership_share || 0);
+  const agentLiveExposure = liveExposure * pShare / 100;
+
+  // Count distinct open markets with client orders
+  const openMarketsWithBets = new Set(allOutcomes.filter(o => openOutcomeIds.has(o.id) && openOrds.some(ord => ord.outcome_id === o.id)).map(o => o.event_id)).size;
+
+  document.getElementById('pnlLiveExposure').textContent = fmt(liveExposure, 0);
+  document.getElementById('pnlLiveAgentExposure').textContent = fmt(agentLiveExposure, 0);
+  document.getElementById('pnlLiveSharePct').textContent = pShare;
+  document.getElementById('pnlLiveMarkets').textContent = openMarketsWithBets;
+
+  // Hide live section if no open markets with bets
+  document.getElementById('pnlLiveSection').style.display = openMarketsWithBets > 0 ? '' : 'none';
+
   // Summary stats from actual settlement_results (not estimates)
   const totalClientPnl = allSettlementResults.reduce((s,r) => s + parseFloat(r.total_client_pnl || 0), 0);
   const totalCommGiven = allSettlementResults.reduce((s,r) => s + parseFloat(r.agent_commission_share || 0), 0);
