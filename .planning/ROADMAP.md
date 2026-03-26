@@ -128,12 +128,12 @@ Plans:
   2. Agent P&L views use card-based layout on small screens with scrollable tables for detail data
   3. Agent settlement view uses single-column cards with touch-friendly action buttons (no tiny desktop-sized controls)
   4. Agent client management forms (create, edit, fund transfer) are usable on mobile without horizontal scrolling or overlapping elements
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [ ] 07-01-PLAN.md -- Responsive infrastructure: viewport meta, bottom nav, sidebar hide, stat card stacking, table scroll (AMOB-01, AMOB-02)
+- [ ] 07-02-PLAN.md -- Settlement, client management, and form mobile CSS with visual verification (AMOB-03, AMOB-04)
 
 ### Phase 8: Code Modularization
 **Goal**: Monolithic inline JS/CSS is extracted into maintainable separate files with a consistent namespace convention
@@ -164,5 +164,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 4. Commission Visibility | 0/2 | Not started | - |
 | 5. Agent P&L Core | 0/2 | Not started | - |
 | 6. Agent P&L Views | 0/2 | Not started | - |
-| 7. Agent Mobile UI | 0/0 | Not started | - |
+| 7. Agent Mobile UI | 0/2 | Not started | - |
 | 8. Code Modularization | 0/0 | Not started | - |
