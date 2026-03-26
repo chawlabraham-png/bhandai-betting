@@ -1367,6 +1367,7 @@
 const sb = window.supabaseClient;
 let currentUser = null;
 let allUsers = [], allTransactions = [], allEvents = [], allOutcomes = [], allOrders = [], allAnnouncements = [], allAuditLogs = [];
+let allSettlementResults = [];
 let activeTab = 'dashboard';
 let roleFilter = 'AGENT';
 let catFilter = 'ALL';
@@ -1433,14 +1434,15 @@ function timeAgo(ts) {
 
 async function refreshData() {
   document.getElementById('lastRefreshed').textContent = 'Updated ' + new Date().toLocaleTimeString();
-  const [u, tx, ev, oc, ord, ann, al] = await Promise.all([
+  const [u, tx, ev, oc, ord, ann, al, sr] = await Promise.all([
     sb.from('betting_users').select('*').order('created_at', { ascending: false }),
     sb.from('credit_transactions').select('*').order('created_at', { ascending: false }).limit(1000),
     sb.from('events').select('*').order('created_at', { ascending: false }),
     sb.from('outcomes').select('*'),
     sb.from('orders').select('*').order('created_at', { ascending: false }).limit(2000),
     sb.from('platform_announcements').select('*').order('created_at', { ascending: false }),
-    sb.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(500)
+    sb.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(500),
+    sb.from('settlement_results').select('*')
   ]);
   allUsers = u.data || [];
   allTransactions = tx.data || [];
@@ -1449,6 +1451,7 @@ async function refreshData() {
   allOrders = ord.data || [];
   allAnnouncements = ann.data || [];
   allAuditLogs = al.data || [];
+  allSettlementResults = sr.data || [];
 
   // Sidebar: total coins in circulation (agents + clients)
   const totalInMarket = allUsers.filter(u => u.role !== 'ADMIN').reduce((s, u) => s + parseFloat(u.balance || 0), 0);
@@ -3214,11 +3217,20 @@ function renderSettlement() {
     // Gross exposure = everything admin put into this agent's network
     const grossExposure = (deposited - recovered) + directToClients - directFromClients;
 
+    // Share-adjusted P&L from settlement_results (per D-11, D-12)
+    const agentSR = allSettlementResults.filter(r => r.agent_id === agent.id);
+    const srPnlShare = agentSR.reduce((s, r) => s + parseFloat(r.agent_pnl_share || 0), 0);
+    const srCommShare = agentSR.reduce((s, r) => s + parseFloat(r.agent_commission_share || 0), 0);
+    const srNetPnl = agentSR.reduce((s, r) => s + parseFloat(r.agent_net_pnl || 0), 0);
+    const srAvgShare = agentSR.length > 0
+      ? (agentSR.reduce((s, r) => s + parseFloat(r.partnership_share_at_settlement || 0), 0) / agentSR.length)
+      : parseFloat(agent.partnership_share || 0);
+
     return `<div class="settlement-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
         <div>
           <div class="sc-agent">${agent.login_id}</div>
-          <div class="sc-name">${agent.name || '—'} · ${agentClients.length} clients · 🪙${(currentBal + clientBals).toLocaleString(undefined,{maximumFractionDigits:0})} in book</div>
+          <div class="sc-name">${agent.name || '—'} · ${agentClients.length} clients · ${agentSR.length} settled · 🪙${(currentBal + clientBals).toLocaleString(undefined,{maximumFractionDigits:0})} in book</div>
         </div>
         <button class="btn btn-primary btn-sm" onclick="openAgentSettleModal('${agent.id}')">Settle ↓</button>
       </div>
@@ -3230,6 +3242,20 @@ function renderSettlement() {
         <span class="lbl" style="font-weight:600;">Gross Exposure</span>
         <span class="val" style="color:#e2e8f0;font-weight:700;">🪙 ${grossExposure.toLocaleString(undefined,{minimumFractionDigits:2})}</span>
       </div>
+      ${agentSR.length > 0 ? `
+      <div class="sc-row" style="border-top:1px solid #334155;margin-top:6px;padding-top:6px;">
+        <span class="lbl" style="color:#a78bfa;font-weight:600;">P&L Share (${srAvgShare.toFixed(0)}%)</span>
+        <span class="val" style="color:${srPnlShare >= 0 ? '#10b981' : '#ef4444'};">🪙 ${srPnlShare.toLocaleString(undefined,{minimumFractionDigits:2})}</span>
+      </div>
+      <div class="sc-row">
+        <span class="lbl" style="color:#a78bfa;">Commission Cost</span>
+        <span class="val" style="color:#a78bfa;">🪙 ${srCommShare.toLocaleString(undefined,{minimumFractionDigits:2})}</span>
+      </div>
+      <div class="sc-row">
+        <span class="lbl" style="color:#a78bfa;font-weight:600;">Agent Net P&L</span>
+        <span class="val" style="color:${srNetPnl >= 0 ? '#10b981' : '#ef4444'};font-weight:700;">🪙 ${srNetPnl.toLocaleString(undefined,{minimumFractionDigits:2})}</span>
+      </div>
+      ` : ''}
       ${settled > 0 ? `<div class="sc-row"><span class="lbl">Cash settled (admin received)</span><span class="val" style="color:#3b82f6;">−🪙 ${settled.toLocaleString(undefined,{minimumFractionDigits:2})}</span></div>` : ''}
       <div class="sc-net">
         <span style="font-size:0.78rem;font-weight:700;color:${netColor};">${netLabel}</span>
