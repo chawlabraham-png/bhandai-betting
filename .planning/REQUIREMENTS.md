@@ -64,12 +64,12 @@ Requirements for this milestone. Each maps to roadmap phases.
 ### Code Restructure
 
 - [x] **CODE-01**: Shared utilities extracted to `lib/utils.js` (sanitize, fmt, timeAgo, showToast, modal helpers)
-- [ ] **CODE-02**: Commission calculation extracted to `lib/commission.js` (pure functions, no side effects)
-- [ ] **CODE-03**: Agent P&L calculation extracted to `lib/pnl.js`
-- [ ] **CODE-04**: Role-specific JS extracted from inline `<script>` into separate files per role
+- [x] **CODE-02**: Commission calculation extracted to `lib/commission.js` (pure functions, no side effects)
+- [x] **CODE-03**: Agent P&L calculation extracted to `lib/pnl.js`
+- [x] **CODE-04**: Role-specific JS extracted from inline `<script>` into separate files per role
 - [x] **CODE-05**: Inline CSS extracted to shared (`shared.css`) and role-specific CSS files
 - [x] **CODE-06**: Namespace convention applied -- `window.BX` for shared, `window.Admin`/`window.Agent`/`window.Client` for role-specific
-- [ ] **CODE-07**: HTML files reduced to markup + `<script src>` / `<link>` references only
+- [x] **CODE-07**: HTML files reduced to markup + `<script src>` / `<link>` references only
 
 ## v2 Requirements
 
@@ -144,12 +144,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AMOB-03 | Phase 7: Agent Mobile UI | Pending |
 | AMOB-04 | Phase 7: Agent Mobile UI | Pending |
 | CODE-01 | Phase 8: Code Modularization | Complete |
-| CODE-02 | Phase 8: Code Modularization | Pending |
-| CODE-03 | Phase 8: Code Modularization | Pending |
-| CODE-04 | Phase 8: Code Modularization | Pending |
+| CODE-02 | Phase 8: Code Modularization | Complete |
+| CODE-03 | Phase 8: Code Modularization | Complete |
+| CODE-04 | Phase 8: Code Modularization | Complete |
 | CODE-05 | Phase 8: Code Modularization | Complete |
 | CODE-06 | Phase 8: Code Modularization | Complete |
-| CODE-07 | Phase 8: Code Modularization | Pending |
+| CODE-07 | Phase 8: Code Modularization | Complete |
 
 **Coverage:**
 - v1 requirements: 40 total
