@@ -56,8 +56,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Agent Mobile UI
 
-- [ ] **AMOB-01**: Agent dashboard responsive -- works on mobile screens (replicate client.html mobile-first patterns)
-- [ ] **AMOB-02**: Agent P&L views mobile-friendly -- card-based layout on small screens, scrollable tables
+- [x] **AMOB-01**: Agent dashboard responsive -- works on mobile screens (replicate client.html mobile-first patterns)
+- [x] **AMOB-02**: Agent P&L views mobile-friendly -- card-based layout on small screens, scrollable tables
 - [ ] **AMOB-03**: Agent settlement view mobile-friendly -- single-column cards, touch-friendly actions
 - [ ] **AMOB-04**: Agent client management mobile-friendly -- create/edit/fund forms usable on mobile
 
@@ -139,8 +139,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | APNL-09 | Phase 6: Agent P&L Views | Complete |
 | APNL-10 | Phase 6: Agent P&L Views | Complete |
 | APNL-11 | Phase 6: Agent P&L Views | Complete |
-| AMOB-01 | Phase 7: Agent Mobile UI | Pending |
-| AMOB-02 | Phase 7: Agent Mobile UI | Pending |
+| AMOB-01 | Phase 7: Agent Mobile UI | Complete |
+| AMOB-02 | Phase 7: Agent Mobile UI | Complete |
 | AMOB-03 | Phase 7: Agent Mobile UI | Pending |
 | AMOB-04 | Phase 7: Agent Mobile UI | Pending |
 | CODE-01 | Phase 8: Code Modularization | Pending |
