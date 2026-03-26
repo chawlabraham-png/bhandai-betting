@@ -48,9 +48,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Agent P&L -- Views
 
-- [ ] **APNL-07**: Agent P&L summary view -- total client volume, wins, losses, commission given, agent share, net position
-- [ ] **APNL-08**: Agent P&L per-market expandable detail -- client wins, losses, commission, agent net per market
-- [ ] **APNL-09**: Agent P&L per-client detail -- each client's total P&L, commission, agent's net per client
+- [x] **APNL-07**: Agent P&L summary view -- total client volume, wins, losses, commission given, agent share, net position
+- [x] **APNL-08**: Agent P&L per-market expandable detail -- client wins, losses, commission, agent net per market
+- [x] **APNL-09**: Agent P&L per-client detail -- each client's total P&L, commission, agent's net per client
 - [ ] **APNL-10**: Real-time agent P&L -- live exposure tracking during open markets via realtime subscriptions
 - [ ] **APNL-11**: Admin agent settlement cards show share-adjusted P&L (not just chip flow)
 
@@ -134,9 +134,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | APNL-04 | Phase 5: Agent P&L Core | Complete |
 | APNL-05 | Phase 5: Agent P&L Core | Complete |
 | APNL-06 | Phase 5: Agent P&L Core | Complete |
-| APNL-07 | Phase 6: Agent P&L Views | Pending |
-| APNL-08 | Phase 6: Agent P&L Views | Pending |
-| APNL-09 | Phase 6: Agent P&L Views | Pending |
+| APNL-07 | Phase 6: Agent P&L Views | Complete |
+| APNL-08 | Phase 6: Agent P&L Views | Complete |
+| APNL-09 | Phase 6: Agent P&L Views | Complete |
 | APNL-10 | Phase 6: Agent P&L Views | Pending |
 | APNL-11 | Phase 6: Agent P&L Views | Pending |
 | AMOB-01 | Phase 7: Agent Mobile UI | Pending |

@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to plan
-stopped_at: Completed 05-01-PLAN.md (settlement_results table + settle_match_market agent P&L)
-last_updated: "2026-03-25T17:15:49.123Z"
+status: Ready to execute
+stopped_at: Completed 06-01-PLAN.md (agent P&L views with per-market and per-client detail)
+last_updated: "2026-03-26T09:24:50.713Z"
 progress:
   total_phases: 8
   completed_phases: 5
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 12
+  completed_plans: 11
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** Accurate commission deduction and P&L reporting across the agent-client hierarchy
-**Current focus:** Phase 05 — agent-p-l-core
+**Current focus:** Phase 06 — agent-p-l-views
 
 ## Current Position
 
-Phase: 6
-Plan: Not started
+Phase: 06 (agent-p-l-views) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Plan: Not started
 | Phase 04 P01 | 4min | 2 tasks | 1 files |
 | Phase 04 P02 | 3min | 2 tasks | 2 files |
 | Phase 05 P01 | 3min | 2 tasks | 2 files |
+| Phase 06 P01 | 8min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Moved parent lookup outside v_net_pnl < 0 block so agent P&L accumulates for winners too (not just losers)
 - [Phase 05]: Skip agents with 0% partnership_share from settlement_results (discretion: reduces noise)
 - [Phase 05]: Section numbering shifted in settle_match_market: parent lookup 4b, commission 4c, settlement credit 4d, commission credit 4e, agent accum 4f, agent loop Section 5, return Section 6
+- [Phase 06]: Replaced all estimated P&L with actual settlement_results data for agent summary stats
+- [Phase 06]: Per-client P&L computed from orders + winning_outcome since settlement_results is per-agent-per-market not per-client
+- [Phase 06]: Commission matching for per-market detail uses notes field text search on event title
 
 ### Pending Todos
 
@@ -94,6 +98,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-25T17:04:46.349Z
-Stopped at: Completed 05-01-PLAN.md (settlement_results table + settle_match_market agent P&L)
+Last session: 2026-03-26T09:24:50.710Z
+Stopped at: Completed 06-01-PLAN.md (agent P&L views with per-market and per-client detail)
 Resume file: None
