@@ -117,7 +117,7 @@ Plans:
 
 Plans:
 - [x] 06-01-PLAN.md -- Agent P&L summary, per-market expandable detail, and per-client detail from settlement_results (APNL-07, APNL-08, APNL-09)
-- [ ] 06-02-PLAN.md -- Live exposure tracking in agent P&L and share-adjusted admin settlement cards (APNL-10, APNL-11)
+- [x] 06-02-PLAN.md -- Live exposure tracking in agent P&L and share-adjusted admin settlement cards (APNL-10, APNL-11)
 
 ### Phase 7: Agent Mobile UI
 **Goal**: Agents can use the full agent dashboard from mobile devices with a touch-friendly, readable layout

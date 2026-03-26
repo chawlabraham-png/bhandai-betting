@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-stopped_at: Completed 06-01-PLAN.md (agent P&L views with per-market and per-client detail)
-last_updated: "2026-03-26T09:24:50.713Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 06-02-PLAN.md (live exposure and admin settlement P&L)
+last_updated: "2026-03-26T10:06:28.846Z"
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State
@@ -53,6 +53,7 @@ Plan: 2 of 2
 | Phase 04 P02 | 3min | 2 tasks | 2 files |
 | Phase 05 P01 | 3min | 2 tasks | 2 files |
 | Phase 06 P01 | 8min | 2 tasks | 1 files |
+| Phase 06 P02 | 18min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,8 @@ Recent decisions affecting current work:
 - [Phase 06]: Replaced all estimated P&L with actual settlement_results data for agent summary stats
 - [Phase 06]: Per-client P&L computed from orders + winning_outcome since settlement_results is per-agent-per-market not per-client
 - [Phase 06]: Commission matching for per-market detail uses notes field text search on event title
+- [Phase 06]: Live exposure uses shares (potential payout) not total_cost for open order risk
+- [Phase 06]: Admin settlement cards conditionally show P&L rows only when settlement_results exist for agent
 
 ### Pending Todos
 
@@ -98,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-26T09:24:50.710Z
-Stopped at: Completed 06-01-PLAN.md (agent P&L views with per-market and per-client detail)
+Last session: 2026-03-26T10:06:28.844Z
+Stopped at: Completed 06-02-PLAN.md (live exposure and admin settlement P&L)
 Resume file: None
