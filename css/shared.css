@@ -1,0 +1,153 @@
+/* ══════════════════════════════════════════════════════════════════
+   Bhandai Exchange -- Shared CSS
+   Common reset, fonts, toast, modal, auth gate, session warning,
+   buttons, cards, badges, forms, and utility classes.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── RESET ────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: #0f172a; color: #e2e8f0; }
+
+/* ── SCROLLBAR ────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+/* ── UTILITY CLASSES ──────────────────────────────────────────── */
+.mono { font-family: 'JetBrains Mono', monospace; }
+.text-white { color: white !important; font-weight: 600; }
+.text-muted { color: #64748b; }
+
+/* ── TOAST ────────────────────────────────────────────────────── */
+#toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+.toast { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px 18px; font-size: 0.85rem; color: #e2e8f0; display: flex; align-items: center; gap: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: slideIn 0.2s ease; min-width: 260px; }
+.toast.success { border-left: 3px solid #10b981; }
+.toast.error   { border-left: 3px solid #ef4444; }
+.toast.info    { border-left: 3px solid #3b82f6; }
+@keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+
+/* ── MODAL ────────────────────────────────────────────────────── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; }
+.modal-overlay.open { display: flex; }
+.modal { background: #1e293b; border: 1px solid #334155; border-radius: 16px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+.modal-lg { width: 600px; }
+.modal-header { padding: 20px 24px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #1e293b; z-index: 1; }
+.modal-title { font-size: 1rem; font-weight: 700; color: white; }
+.modal-close { background: none; border: none; color: #64748b; font-size: 1.4rem; cursor: pointer; padding: 0 4px; line-height: 1; }
+.modal-close:hover { color: white; }
+.modal-body { padding: 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid #334155; display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ── FORM ─────────────────────────────────────────────────────── */
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; color: #94a3b8; font-size: 0.8rem; font-weight: 600; margin-bottom: 6px; }
+.form-input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 10px 14px; color: white; font-size: 0.875rem; outline: none; transition: border-color 0.15s; }
+.form-input:focus { border-color: #3b82f6; }
+.form-select { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 10px 14px; color: white; font-size: 0.875rem; outline: none; appearance: none; cursor: pointer; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-hint { font-size: 0.72rem; color: #64748b; margin-top: 4px; }
+
+/* ── BUTTONS ──────────────────────────────────────────────────── */
+.btn { padding: 7px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.btn-primary { background: #3b82f6; color: white; border-color: #3b82f6; }
+.btn-primary:hover { background: #2563eb; }
+.btn-success { background: rgba(16,185,129,0.15); color: #10b981; border-color: rgba(16,185,129,0.3); }
+.btn-success:hover { background: rgba(16,185,129,0.25); }
+.btn-danger { background: rgba(239,68,68,0.15); color: #ef4444; border-color: rgba(239,68,68,0.3); }
+.btn-danger:hover { background: rgba(239,68,68,0.25); }
+.btn-warning { background: rgba(245,158,11,0.15); color: #f59e0b; border-color: rgba(245,158,11,0.3); }
+.btn-warning:hover { background: rgba(245,158,11,0.25); }
+.btn-ghost { background: #334155; color: #cbd5e1; border-color: #334155; }
+.btn-ghost:hover { background: #475569; color: white; }
+.btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+.btn-lg { padding: 12px 24px; font-size: 0.95rem; width: 100%; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-group { display: flex; gap: 6px; }
+.btn-icon { padding: 6px 10px; }
+
+/* ── CARDS ────────────────────────────────────────────────────── */
+.card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+.card-header { padding: 16px 24px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.card-title { font-size: 0.9rem; font-weight: 700; color: white; }
+.card-body { padding: 0; }
+
+/* ── TABLES ───────────────────────────────────────────────────── */
+table { width: 100%; border-collapse: collapse; }
+th { background: #0f172a; padding: 10px 20px; color: #475569; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+td { padding: 14px 20px; border-bottom: 1px solid #1e293b; color: #cbd5e1; font-size: 0.875rem; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* ── BADGES ───────────────────────────────────────────────────── */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+.badge-active { background: rgba(16,185,129,0.15); color: #10b981; }
+.badge-suspended { background: rgba(239,68,68,0.1); color: #f87171; }
+.badge-live { background: rgba(16,185,129,0.15); color: #10b981; }
+.badge-settled { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-void { background: rgba(148,163,184,0.15); color: #94a3b8; }
+.badge-agent { background: rgba(139,92,246,0.15); color: #a78bfa; }
+.badge-client { background: rgba(16,185,129,0.15); color: #34d399; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; background: currentColor; }
+
+/* ── EMPTY STATE ──────────────────────────────────────────────── */
+.empty { text-align: center; padding: 40px 20px; color: #475569; }
+.empty-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.5; }
+.empty-text { font-size: 0.875rem; }
+
+/* ── AUTH GATE / SESSION ──────────────────────────────────────── */
+@keyframes authSpin { to { transform: rotate(360deg); } }
+
+/* ── STAT CARDS ───────────────────────────────────────────────── */
+.stats-grid { display: grid; gap: 16px; margin-bottom: 24px; }
+.stats-grid-4 { grid-template-columns: repeat(4, 1fr); }
+.stats-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.stats-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px 24px; }
+.stat-card.accent-red    { border-left: 3px solid #ef4444; }
+.stat-card.accent-green  { border-left: 3px solid #10b981; }
+.stat-card.accent-blue   { border-left: 3px solid #3b82f6; }
+.stat-card.accent-amber  { border-left: 3px solid #f59e0b; }
+.stat-card.accent-purple { border-left: 3px solid #8b5cf6; }
+.stat-label { color: #64748b; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+.stat-value { font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 700; color: white; line-height: 1; }
+.stat-value.green  { color: #10b981; }
+.stat-value.red    { color: #ef4444; }
+.stat-value.blue   { color: #3b82f6; }
+.stat-value.amber  { color: #f59e0b; }
+.stat-value.purple { color: #a78bfa; }
+.stat-change { font-size: 0.72rem; color: #475569; margin-top: 6px; }
+
+/* ── FEED / ACTIVITY ──────────────────────────────────────────── */
+.feed-item { display: flex; gap: 12px; padding: 12px 20px; border-bottom: 1px solid #1e293b; align-items: flex-start; }
+.feed-item:last-child { border-bottom: none; }
+.feed-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.feed-dot.green { background: #10b981; }
+.feed-dot.red   { background: #ef4444; }
+.feed-dot.blue  { background: #3b82f6; }
+.feed-dot.amber { background: #f59e0b; }
+.feed-content { flex: 1; min-width: 0; }
+.feed-text { font-size: 0.825rem; color: #cbd5e1; line-height: 1.4; }
+.feed-text strong { color: white; }
+.feed-time { font-size: 0.7rem; color: #475569; margin-top: 2px; }
+.feed-amount { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700; flex-shrink: 0; }
+
+/* ── UTILIZATION BAR ──────────────────────────────────────────── */
+.util-bar  { background: #334155; height: 5px; border-radius: 3px; margin-top: 4px; overflow: hidden; }
+.util-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.util-ok   { background: #10b981; }
+.util-warn { background: #f59e0b; }
+.util-crit { background: #ef4444; }
+
+/* ── CREDENTIALS BOX ──────────────────────────────────────────── */
+.creds-box { background: #0f172a; border: 1px dashed #334155; border-radius: 8px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 1rem; margin-top: 16px; }
+.cred-label { color: #64748b; font-size: 0.8rem; margin-bottom: 4px; }
+.cred-value { color: white; font-size: 1.2rem; font-weight: 700; }
+
+/* ── ANNOUNCEMENTS ────────────────────────────────────────────── */
+.announcement-card { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 14px 18px; margin-bottom: 10px; }
+.announcement-msg { color: #e2e8f0; font-size: 0.875rem; line-height: 1.5; }
+.announcement-meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.announcement-time { font-size: 0.72rem; color: #475569; }
+
+/* ── ANIMATIONS ───────────────────────────────────────────────── */
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.2)} }

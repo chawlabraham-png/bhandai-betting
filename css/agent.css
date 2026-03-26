@@ -1,0 +1,213 @@
+/* ══════════════════════════════════════════════════════════════════
+   Bhandai Exchange -- Agent CSS
+   Agent-specific: sidebar, clients, P&L detail, settlement,
+   account, mobile responsive, bottom nav, more menu.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── LAYOUT ───────────────────────────────────────────────────── */
+body { display: flex; height: 100vh; overflow: hidden; }
+
+/* ── SIDEBAR (indigo theme) ───────────────────────────────────── */
+.sidebar { width: 244px; background: #1e1b4b; border-right: 1px solid #312e81; display: flex; flex-direction: column; flex-shrink: 0; }
+.sidebar-brand { padding: 18px 22px; border-bottom: 1px solid #312e81; }
+.sidebar-brand .title { font-size: 1.05rem; font-weight: 800; color: white; }
+.sidebar-brand .sub { font-size: 0.67rem; color: #a5b4fc; margin-top: 2px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+.sidebar-nav { flex: 1; padding: 10px 0; overflow-y: auto; }
+.nav-section { padding: 10px 22px 3px; font-size: 0.58rem; font-weight: 700; color: #4338ca; text-transform: uppercase; letter-spacing: 0.12em; }
+.nav-item { padding: 9px 22px; color: #a5b4fc; display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 0.855rem; cursor: pointer; transition: all 0.15s; user-select: none; border-left: 3px solid transparent; }
+.nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+.nav-item.active { background: rgba(139,92,246,0.15); color: #a78bfa; border-left-color: #8b5cf6; }
+.nav-icon { width: 18px; text-align: center; font-size: 0.95rem; }
+.sidebar-footer { padding: 14px 22px; border-top: 1px solid #312e81; }
+.sidebar-bal-label { font-size: 0.65rem; color: #6366f1; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+.sidebar-bal-val { font-family: 'JetBrains Mono', monospace; font-size: 1.15rem; font-weight: 700; color: white; }
+.sidebar-id { font-size: 0.7rem; color: #818cf8; margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+
+/* ── MAIN AREA ────────────────────────────────────────────────── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.topbar { height: 58px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; padding: 0 26px; flex-shrink: 0; }
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-title { font-size: 0.93rem; font-weight: 700; color: white; }
+.topbar-sub { font-size: 0.75rem; color: #94a3b8; font-family: 'JetBrains Mono', monospace; }
+.topbar-right { display: flex; align-items: center; gap: 9px; }
+.live-dot { width: 7px; height: 7px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite; }
+.refresh-btn { background: #334155; border: none; color: #94a3b8; padding: 6px 13px; border-radius: 6px; font-size: 0.77rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.refresh-btn:hover { background: #475569; color: white; }
+.logout-btn { background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 6px 14px; border-radius: 6px; font-size: 0.77rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.logout-btn:hover { border-color: #ef4444; color: #ef4444; }
+
+/* ── CONTENT ──────────────────────────────────────────────────── */
+.content { flex: 1; overflow-y: auto; padding: 22px 26px; }
+.tab-content { display: none; } .tab-content.active { display: block; }
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20px; }
+.page-title { font-size: 1.25rem; font-weight: 800; color: white; }
+.page-sub { font-size: 0.75rem; color: #64748b; margin-top: 3px; }
+
+/* ── AGENT-SPECIFIC OVERRIDES ─────────────────────────────────── */
+/* Agent btn-primary is purple instead of blue */
+.btn-primary { background: #7c3aed; color: white; border-color: #7c3aed; }
+.btn-primary:hover { background: #6d28d9; }
+
+/* Agent-specific button sizes */
+.btn { padding: 6px 13px; font-size: 0.77rem; }
+.btn-sm { padding: 3px 9px; font-size: 0.72rem; }
+.btn-lg { padding: 10px 20px; font-size: 0.88rem; }
+
+/* Agent badge extras */
+.badge-paused { background: rgba(245,158,11,0.15); color: #f59e0b; }
+
+/* Agent-specific search */
+.search-input { background: #0f172a; border: 1px solid #334155; color: white; padding: 6px 12px; border-radius: 6px; font-size: 0.82rem; width: 185px; outline: none; }
+.search-input:focus { border-color: #8b5cf6; }
+.search-input::placeholder { color: #475569; }
+
+/* Agent filter bar */
+.filter-bar { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; padding: 11px 16px; background: #0f172a; border-bottom: 1px solid #334155; }
+.filter-bar input, .filter-bar select { background: #1e293b; border: 1px solid #334155; color: white; padding: 6px 10px; border-radius: 6px; font-size: 0.79rem; outline: none; }
+.filter-bar label { font-size: 0.72rem; color: #64748b; font-weight: 600; }
+
+/* Agent-specific modal widths */
+.modal-xl { width: 700px; }
+
+/* Agent-specific form overrides */
+.form-group { margin-bottom: 13px; }
+.form-group label { font-size: 0.77rem; margin-bottom: 5px; }
+.form-input { padding: 8px 12px; font-size: 0.845rem; }
+.form-input:focus { border-color: #8b5cf6; }
+.form-select { padding: 8px 12px; font-size: 0.845rem; }
+.form-row { gap: 13px; }
+.form-hint { font-size: 0.68rem; margin-top: 3px; }
+
+/* Agent-specific toast info color (purple) */
+.toast.info { border-left: 3px solid #8b5cf6; }
+
+/* ── ACCOUNT SECTION ──────────────────────────────────────────── */
+.acc-section { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px 22px; margin-bottom: 16px; }
+.acc-section h3 { font-size: 0.855rem; font-weight: 700; color: white; margin-bottom: 13px; padding-bottom: 10px; border-bottom: 1px solid #334155; }
+.acc-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #1e293b; }
+.acc-row:last-child { border-bottom: none; }
+.acc-label { font-size: 0.82rem; color: #94a3b8; }
+.acc-val { font-size: 0.845rem; color: white; font-weight: 600; }
+
+/* ── SETTLEMENT ───────────────────────────────────────────────── */
+.settle-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 18px; }
+.settle-row { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 6px; }
+.settle-row .lbl { color: #94a3b8; }
+.settle-row .val { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: white; }
+.hr { border: none; border-top: 1px solid #334155; margin: 10px 0; }
+
+/* ── PASSWORD ROW ─────────────────────────────────────────────── */
+.pw-row { display: flex; align-items: center; gap: 5px; }
+
+/* ── P&L DETAIL ROWS ─────────────────────────────────────────── */
+.pnl-detail-row td { padding: 0 !important; }
+.pnl-detail-row .detail-inner { padding: 8px 16px 12px 32px; background: rgba(15,23,42,0.5); }
+.pnl-detail-row table { width: 100%; font-size: 0.78rem; }
+.pnl-detail-row th { color: #64748b; font-weight: 500; padding: 4px 8px; }
+.pnl-detail-row td { padding: 4px 8px; color: #cbd5e1; }
+.pnl-toggle { cursor: pointer; transition: transform 0.2s; display: inline-block; }
+.pnl-toggle.open { transform: rotate(90deg); }
+
+/* ── BOTTOM NAV (base, hidden on desktop) ─────────────────────── */
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; background: #1e293b; border-top: 1px solid #334155; display: none; height: 62px; }
+.bnav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; color: #64748b; font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; transition: all 0.15s; border-top: 2px solid transparent; }
+.bnav-item.active { color: #818cf8; border-top-color: #6366f1; }
+.bnav-item:hover:not(.active) { color: #94a3b8; }
+.bnav-icon { font-size: 1.25rem; line-height: 1; }
+.more-menu { position: fixed; bottom: 62px; left: 0; right: 0; background: #1e293b; border-top: 1px solid #334155; display: none; flex-direction: column; z-index: 99; }
+.more-menu.open { display: flex; }
+.more-menu-item { padding: 14px 20px; color: #a5b4fc; font-size: 0.85rem; font-weight: 500; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #334155; cursor: pointer; }
+.more-menu-item:hover { background: rgba(255,255,255,0.05); }
+.more-menu-overlay { position: fixed; inset: 0; z-index: 98; display: none; }
+.more-menu-overlay.open { display: block; }
+
+/* ── CLIENT MOBILE CARDS (JS rendered) ────────────────────────── */
+.client-mobile-card { background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 14px; margin-bottom: 8px; }
+.client-mobile-card .cmc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.client-mobile-card .cmc-name { font-weight: 700; color: white; font-size: 0.88rem; }
+.client-mobile-card .cmc-id { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #818cf8; }
+.client-mobile-card .cmc-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.8rem; }
+.client-mobile-card .cmc-label { color: #94a3b8; }
+.client-mobile-card .cmc-val { color: white; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+.client-mobile-card .cmc-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.client-mobile-card .cmc-actions .btn { flex: 1; min-width: 80px; min-height: 44px; }
+
+/* ── MOBILE RESPONSIVE ────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Body and layout */
+  body { flex-direction: column; height: auto; overflow: auto; padding-bottom: 72px; }
+  .sidebar { display: none; }
+  .bottom-nav { display: flex; }
+  .main { width: 100%; overflow: visible; }
+  .topbar { padding: 0 14px; height: 50px; }
+  .topbar-sub { display: none; }
+  .content { padding: 14px 12px; }
+
+  /* Stat cards collapse */
+  .stats-grid-4, .stats-grid-3, .stats-grid-2 { grid-template-columns: 1fr !important; }
+  .stats-grid { grid-template-columns: 1fr !important; }
+
+  /* Tables horizontal scroll */
+  .card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 600px; }
+
+  /* Dashboard grids collapse */
+  [style*="grid-template-columns:1fr 360px"] { grid-template-columns: 1fr !important; }
+  [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+
+  /* Page header stack */
+  .page-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  /* Card header stack */
+  .card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  /* Filter bar stack */
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .filter-bar input, .filter-bar select { width: 100%; }
+  .search-input { width: 100% !important; }
+
+  /* Topbar right hide on mobile */
+  .topbar-right .refresh-btn { display: none; }
+  .topbar-right #lastRefreshed { display: none; }
+
+  /* Settlement */
+  #tab-settlement [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+  .settle-card { padding: 14px; }
+  .settle-row { font-size: 0.78rem; }
+  .settle-row .val { font-size: 0.82rem; }
+
+  /* Touch targets */
+  .btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .btn-sm { min-height: 36px; }
+  .btn-group { flex-wrap: wrap; }
+
+  /* Modal forms */
+  .modal { width: 96vw; }
+  .modal-lg, .modal-xl { width: 96vw; }
+  .modal-body { padding: 16px 14px; }
+  .modal-header { padding: 14px; }
+  .modal-footer { padding: 10px 14px; flex-wrap: wrap; }
+  .modal-footer .btn { flex: 1; min-width: 120px; }
+
+  /* Form inputs */
+  .form-row { grid-template-columns: 1fr !important; gap: 10px; }
+  .form-input, .form-select { font-size: 16px; }
+
+  /* Client list table */
+  #tab-clients table { min-width: 700px; }
+  #tab-clients .card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Account tab */
+  #tab-account [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+  .acc-section { padding: 16px; }
+  .acc-row { flex-wrap: wrap; gap: 4px; }
+
+  /* Ledger filter inputs */
+  .filter-bar input[type="date"] { width: 100%; }
+  .filter-bar select { width: 100%; }
+  #txUserSearch { width: 100% !important; }
+
+  /* Bet log and markets tables */
+  #tab-betlog table { min-width: 650px; }
+  #tab-markets table { min-width: 700px; }
+}
