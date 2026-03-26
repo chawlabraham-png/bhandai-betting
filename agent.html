@@ -233,7 +233,59 @@
       /* Topbar right — hide refresh + last refreshed on mobile */
       .topbar-right .refresh-btn { display: none; }
       .topbar-right #lastRefreshed { display: none; }
+
+      /* Settlement 2-col grid to single column */
+      #tab-settlement [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+      .settle-card { padding: 14px; }
+      .settle-row { font-size: 0.78rem; }
+      .settle-row .val { font-size: 0.82rem; }
+
+      /* Touch targets */
+      .btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+      .btn-sm { min-height: 36px; }
+      .btn-group { flex-wrap: wrap; }
+
+      /* Modal forms */
+      .modal { width: 96vw; }
+      .modal-lg, .modal-xl { width: 96vw; }
+      .modal-body { padding: 16px 14px; }
+      .modal-header { padding: 14px; }
+      .modal-footer { padding: 10px 14px; flex-wrap: wrap; }
+      .modal-footer .btn { flex: 1; min-width: 120px; }
+
+      /* Form inputs vertical stack */
+      .form-row { grid-template-columns: 1fr !important; gap: 10px; }
+      .form-input, .form-select { font-size: 16px; }  /* prevents iOS zoom on focus */
+
+      /* Client list — horizontal scroll for table fallback */
+      #tab-clients table { min-width: 700px; }
+      #tab-clients .card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+      /* Account tab — single column */
+      #tab-account [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+      .acc-section { padding: 16px; }
+      .acc-row { flex-wrap: wrap; gap: 4px; }
+
+      /* Ledger filter bar inputs */
+      .filter-bar input[type="date"] { width: 100%; }
+      .filter-bar select { width: 100%; }
+      #txUserSearch { width: 100% !important; }
+
+      /* Bet log and markets tables horizontal scroll */
+      #tab-betlog table { min-width: 650px; }
+      #tab-markets table { min-width: 700px; }
     }
+
+    /* Client mobile cards (rendered by JS on mobile only) */
+    .client-mobile-card { background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 14px; margin-bottom: 8px; }
+    .client-mobile-card .cmc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .client-mobile-card .cmc-name { font-weight: 700; color: white; font-size: 0.88rem; }
+    .client-mobile-card .cmc-id { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #818cf8; }
+    .client-mobile-card .cmc-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.8rem; }
+    .client-mobile-card .cmc-label { color: #94a3b8; }
+    .client-mobile-card .cmc-val { color: white; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .client-mobile-card .cmc-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    .client-mobile-card .cmc-actions .btn { flex: 1; min-width: 80px; min-height: 44px; }
   </style>
 </head>
 <body>
@@ -1107,11 +1159,33 @@ function renderClients() {
     tbody.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No clients found</div></div></td></tr>';
     return;
   }
+  const isMobile = window.innerWidth <= 768;
   tbody.innerHTML = clients.map(c => {
     const bal = parseFloat(c.balance||0);
     const mC = c.match_commission ?? 0;
     const fC = c.fancy_commission ?? 0;
     const hasPw = !!c.initial_password;
+    if (isMobile) {
+      return `<tr><td colspan="6" style="padding:4px 0;border:none;"><div class="client-mobile-card">
+        <div class="cmc-header">
+          <div>
+            <div class="cmc-name">${sanitize(c.name||'—')}${c.notes?` <span title="${sanitize(c.notes)}" style="cursor:help;font-size:0.72rem;">📝</span>`:''}</div>
+            <div class="cmc-id">${sanitize(c.login_id)}</div>
+          </div>
+          <div>${clientBadge(c)}</div>
+        </div>
+        <div class="cmc-row"><span class="cmc-label">Balance</span><span class="cmc-val" style="color:${bal>0?'#10b981':'#94a3b8'};">🪙 ${fmt(bal)}</span></div>
+        <div class="cmc-row"><span class="cmc-label">Match Comm</span><span class="cmc-val">${mC}%</span></div>
+        <div class="cmc-row"><span class="cmc-label">Fancy Comm</span><span class="cmc-val">${fC}%</span></div>
+        <div class="cmc-row"><span class="cmc-label">Last Seen</span><span class="cmc-val" style="font-size:0.75rem;color:#94a3b8;">${timeAgo(c.last_seen_at)}</span></div>
+        <div class="cmc-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openEditClientModal('${c.id}')">Edit</button>
+          <button class="btn btn-success btn-sm" onclick="openFundsModal('${c.id}','DEPOSIT')">+ Coins</button>
+          <button class="btn btn-danger btn-sm" onclick="openFundsModal('${c.id}','WITHDRAWAL')">- Coins</button>
+          <button class="btn btn-ghost btn-sm" onclick="openClientHistory('${c.id}')">History</button>
+        </div>
+      </div></td></tr>`;
+    }
     return `<tr>
       <td>
         <div class="mono text-white" style="font-size:0.88rem;">${sanitize(c.login_id)}${c.notes?` <span title="${sanitize(c.notes)}" style="cursor:help;font-size:0.72rem;">📝</span>`:''}</div>
