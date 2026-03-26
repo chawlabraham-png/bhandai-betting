@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Agent Panel | Bhandai Exchange</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -921,7 +921,28 @@ function switchTab(id) {
   document.querySelectorAll('.tab-content').forEach(el=>el.classList.toggle('active', el.id==='tab-'+id));
   const titles = {dashboard:'Dashboard',clients:'My Clients',ledger:'Ledger',betlog:'Bet Log',pnl:'P&L Report',markets:'Live Markets',settlement:'Settlement',announcements:'Announcements',account:'My Account'};
   document.getElementById('topbarTitle').textContent = titles[id] || id;
+
+  // Bottom nav: toggle active on bnav-items
+  const moreTabs = ['ledger','betlog','settlement','announcements','account'];
+  const isMoreTab = moreTabs.includes(id);
+  document.querySelectorAll('.bnav-item').forEach(b => {
+    if (b.id === 'bnav-more') {
+      b.classList.toggle('active', isMoreTab);
+    } else {
+      b.classList.toggle('active', b.id === 'bnav-' + id);
+    }
+  });
+
+  // Close more menu if open
+  document.getElementById('moreMenu').classList.remove('open');
+  document.getElementById('moreMenuOverlay').classList.remove('open');
+
   renderActiveTab();
+}
+
+function toggleMoreMenu() {
+  document.getElementById('moreMenu').classList.toggle('open');
+  document.getElementById('moreMenuOverlay').classList.toggle('open');
 }
 function renderActiveTab() {
   if (activeTab==='dashboard')     renderDashboard();
@@ -1941,5 +1962,37 @@ async function changePassword() {
 }
 
 </script>
+
+<!-- ═══ MORE MENU OVERLAY ═══ -->
+<div class="more-menu-overlay" id="moreMenuOverlay" onclick="toggleMoreMenu()"></div>
+
+<!-- ═══ MORE MENU ═══ -->
+<div class="more-menu" id="moreMenu">
+  <div class="more-menu-item" onclick="switchTab('ledger')"><span style="width:20px;text-align:center;">💰</span> Ledger</div>
+  <div class="more-menu-item" onclick="switchTab('betlog')"><span style="width:20px;text-align:center;">📋</span> Bet Log</div>
+  <div class="more-menu-item" onclick="switchTab('settlement')"><span style="width:20px;text-align:center;">🤝</span> Settlement</div>
+  <div class="more-menu-item" onclick="switchTab('announcements')"><span style="width:20px;text-align:center;">📣</span> Announcements</div>
+  <div class="more-menu-item" onclick="switchTab('account')"><span style="width:20px;text-align:center;">🔑</span> My Account</div>
+</div>
+
+<!-- ═══ BOTTOM NAV (mobile) ═══ -->
+<nav class="bottom-nav">
+  <div class="bnav-item active" id="bnav-dashboard" onclick="switchTab('dashboard')">
+    <span class="bnav-icon">🏠</span><span>Dashboard</span>
+  </div>
+  <div class="bnav-item" id="bnav-clients" onclick="switchTab('clients')">
+    <span class="bnav-icon">👥</span><span>Clients</span>
+  </div>
+  <div class="bnav-item" id="bnav-pnl" onclick="switchTab('pnl')">
+    <span class="bnav-icon">📈</span><span>P&amp;L</span>
+  </div>
+  <div class="bnav-item" id="bnav-markets" onclick="switchTab('markets')">
+    <span class="bnav-icon">🏏</span><span>Markets</span>
+  </div>
+  <div class="bnav-item" id="bnav-more" onclick="toggleMoreMenu()">
+    <span class="bnav-icon">⋯</span><span>More</span>
+  </div>
+</nav>
+
 </body>
 </html>
