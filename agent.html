@@ -182,6 +182,58 @@
     .pnl-detail-row td { padding: 4px 8px; color: #cbd5e1; }
     .pnl-toggle { cursor: pointer; transition: transform 0.2s; display: inline-block; }
     .pnl-toggle.open { transform: rotate(90deg); }
+
+    /* ═══ BOTTOM NAV (base styles, hidden on desktop) ═══ */
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; background: #1e293b; border-top: 1px solid #334155; display: none; height: 62px; }
+    .bnav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; color: #64748b; font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; transition: all 0.15s; border-top: 2px solid transparent; }
+    .bnav-item.active { color: #818cf8; border-top-color: #6366f1; }
+    .bnav-item:hover:not(.active) { color: #94a3b8; }
+    .bnav-icon { font-size: 1.25rem; line-height: 1; }
+    .more-menu { position: fixed; bottom: 62px; left: 0; right: 0; background: #1e293b; border-top: 1px solid #334155; display: none; flex-direction: column; z-index: 99; }
+    .more-menu.open { display: flex; }
+    .more-menu-item { padding: 14px 20px; color: #a5b4fc; font-size: 0.85rem; font-weight: 500; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #334155; cursor: pointer; }
+    .more-menu-item:hover { background: rgba(255,255,255,0.05); }
+    .more-menu-overlay { position: fixed; inset: 0; z-index: 98; display: none; }
+    .more-menu-overlay.open { display: block; }
+
+    /* ═══ MOBILE RESPONSIVE ═══ */
+    @media (max-width: 768px) {
+      /* Body and layout */
+      body { flex-direction: column; height: auto; overflow: auto; padding-bottom: 72px; }
+      .sidebar { display: none; }
+      .bottom-nav { display: flex; }
+      .main { width: 100%; overflow: visible; }
+      .topbar { padding: 0 14px; height: 50px; }
+      .topbar-sub { display: none; }
+      .content { padding: 14px 12px; }
+
+      /* Stat cards — all grids collapse to single column */
+      .stats-grid-4, .stats-grid-3, .stats-grid-2 { grid-template-columns: 1fr !important; }
+      .stats-grid { grid-template-columns: 1fr !important; }
+
+      /* Tables — horizontal scroll inside cards */
+      .card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 600px; }
+
+      /* Dashboard 2-col grids → single column */
+      [style*="grid-template-columns:1fr 360px"] { grid-template-columns: 1fr !important; }
+      [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+
+      /* Page header stack */
+      .page-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+      /* Card header stack */
+      .card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+      /* Filter bar stack */
+      .filter-bar { flex-direction: column; align-items: stretch; }
+      .filter-bar input, .filter-bar select { width: 100%; }
+      .search-input { width: 100% !important; }
+
+      /* Topbar right — hide refresh + last refreshed on mobile */
+      .topbar-right .refresh-btn { display: none; }
+      .topbar-right #lastRefreshed { display: none; }
+    }
   </style>
 </head>
 <body>
