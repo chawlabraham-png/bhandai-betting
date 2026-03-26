@@ -145,11 +145,12 @@ Plans:
   3. Agent P&L calculation is in `lib/pnl.js` as pure functions
   4. Each role's JS is in separate files (not inline `<script>` blocks) and HTML files contain only markup plus `<script src>` / `<link>` references
   5. All shared code uses `window.BX` namespace; role-specific code uses `window.Admin`, `window.Agent`, or `window.Client` namespaces
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
+- [ ] 08-01-PLAN.md -- Shared utilities (lib/utils.js) and CSS extraction (css/shared.css + role CSS) (CODE-01, CODE-05, CODE-06)
+- [ ] 08-02-PLAN.md -- Commission/P&L libraries and client.js extraction (CODE-02, CODE-03, CODE-04, CODE-06, CODE-07)
+- [ ] 08-03-PLAN.md -- Agent.js and admin.js extraction, HTML reduction complete (CODE-04, CODE-06, CODE-07)
 
 ## Progress
 
@@ -165,4 +166,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 5. Agent P&L Core | 0/2 | Not started | - |
 | 6. Agent P&L Views | 0/2 | Not started | - |
 | 7. Agent Mobile UI | 0/2 | Not started | - |
-| 8. Code Modularization | 0/0 | Not started | - |
+| 8. Code Modularization | 0/3 | Not started | - |
