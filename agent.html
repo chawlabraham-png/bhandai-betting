@@ -174,6 +174,14 @@
     .announcement-msg { color: #e2e8f0; font-size: 0.845rem; line-height: 1.5; }
     .announcement-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.68rem; color: #475569; }
     .pw-row { display: flex; align-items: center; gap: 5px; }
+    /* P&L expandable detail rows */
+    .pnl-detail-row td { padding: 0 !important; }
+    .pnl-detail-row .detail-inner { padding: 8px 16px 12px 32px; background: rgba(15,23,42,0.5); }
+    .pnl-detail-row table { width: 100%; font-size: 0.78rem; }
+    .pnl-detail-row th { color: #64748b; font-weight: 500; padding: 4px 8px; }
+    .pnl-detail-row td { padding: 4px 8px; color: #cbd5e1; }
+    .pnl-toggle { cursor: pointer; transition: transform 0.2s; display: inline-block; }
+    .pnl-toggle.open { transform: rotate(90deg); }
   </style>
 </head>
 <body>
@@ -466,14 +474,14 @@
       <div class="card">
         <div class="card-header"><div class="card-title">Per-Client Performance</div></div>
         <table>
-          <thead><tr><th>Client</th><th>Total Bets</th><th>Volume</th><th>Est. Commission</th><th>Balance</th><th>Net Deployed</th></tr></thead>
+          <thead><tr><th>Client</th><th>Total Bets</th><th>Volume</th><th>Settled P&amp;L</th><th>Commission Recv</th><th>Agent Net</th></tr></thead>
           <tbody id="pnlClientTable"></tbody>
         </table>
       </div>
       <div class="card">
         <div class="card-header"><div class="card-title">Settled Market P&amp;L</div></div>
         <table>
-          <thead><tr><th>Market</th><th>Settled</th><th>Client Volume</th><th>Winner</th><th>Est. Outcome</th></tr></thead>
+          <thead><tr><th></th><th>Market</th><th>Result</th><th>Client P&amp;L</th><th>Commission</th><th>Agent Net</th><th>Share %</th></tr></thead>
           <tbody id="pnlMarketsTable"></tbody>
         </table>
       </div>
@@ -1204,50 +1212,135 @@ function renderPnL() {
   const posEl = document.getElementById('pnlPosition');
   posEl.style.color = netPosition >= 0 ? '#10b981' : '#ef4444';
 
-  // Per-client table
+  // Per-client table (APNL-09: aggregated settled P&L per client)
   const tbody = document.getElementById('pnlClientTable');
   if (myClients.length===0) {
     tbody.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-icon">👥</div><div class="empty-text">No clients yet</div></div></td></tr>';
   } else {
+    const pShare = parseFloat(currentUser.partnership_share||0)/100;
+    // Build set of settled event IDs from settlement_results
+    const settledEventIds = new Set(allSettlementResults.map(sr=>sr.event_id));
     tbody.innerHTML = myClients.map(c=>{
       const cOrders = allOrders.filter(o=>o.user_id===c.id);
       const cVol  = cOrders.reduce((s,o)=>s+parseFloat(o.total_cost||0),0);
-      const cComm = cVol * mComm;
-      const cIssued = allTransactions.filter(t=>t.transaction_type==='DEPOSIT'&&t.receiver_id===c.id&&t.sender_id===currentUser.id).reduce((s,t)=>s+parseFloat(t.amount||0),0);
-      const cCollect= allTransactions.filter(t=>t.transaction_type==='WITHDRAWAL'&&t.sender_id===c.id&&t.receiver_id===currentUser.id).reduce((s,t)=>s+parseFloat(t.amount||0),0);
-      const netDeployed = cIssued - cCollect;
+      // Settled P&L: compute from settled orders per event
+      let settledPnl = 0;
+      settledEventIds.forEach(evId => {
+        const ev = allEvents.find(e=>e.id===evId);
+        if (!ev) return;
+        const ocs = allOutcomes.filter(o=>o.event_id===evId);
+        const ocIds = ocs.map(o=>o.id);
+        const clientEvOrders = cOrders.filter(o=>ocIds.includes(o.outcome_id));
+        clientEvOrders.forEach(o => {
+          const won = (ev.winning_outcome && allOutcomes.find(oc=>oc.id===o.outcome_id)?.title === ev.winning_outcome);
+          settledPnl += won ? (parseFloat(o.shares||0) - parseFloat(o.total_cost||0)) : -parseFloat(o.total_cost||0);
+        });
+      });
+      // Commission received by this client
+      const commRecv = allTransactions
+        .filter(t=>t.transaction_type==='COMMISSION'&&t.receiver_id===c.id)
+        .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+      // Agent net per client: agent earns opposite of client P&L (scaled by partnership) minus commission share
+      const agentNetClient = (settledPnl * -1 * pShare) - (commRecv * pShare);
+      // Color: settled P&L green if client lost (agent earns), red if client won (agent pays)
+      const pnlColor = settledPnl <= 0 ? '#10b981' : '#ef4444';
+      const agentNetColor = agentNetClient >= 0 ? '#10b981' : '#ef4444';
       return `<tr>
         <td><div class="mono text-white">${sanitize(c.login_id)}</div><div class="text-muted" style="font-size:0.72rem;">${sanitize(c.name||'')}</div></td>
         <td class="mono text-muted">${cOrders.length}</td>
-        <td class="mono">🪙 ${fmt(cVol)}</td>
-        <td class="mono" style="color:#10b981;">🪙 ${fmt(cComm)}</td>
-        <td class="mono" style="color:${parseFloat(c.balance||0)>0?'#10b981':'#94a3b8'};">🪙 ${fmt(c.balance)}</td>
-        <td class="mono text-muted">🪙 ${fmt(netDeployed)}</td>
+        <td class="mono text-muted">${fmt(cVol)}</td>
+        <td class="mono" style="color:${pnlColor};">${fmt(settledPnl)}</td>
+        <td class="mono" style="color:#a78bfa;">${fmt(commRecv)}</td>
+        <td class="mono" style="color:${agentNetColor};">${fmt(agentNetClient)}</td>
       </tr>`;
     }).join('');
   }
 
-  // Settled markets
-  const settled = allEvents.filter(e=>e.is_resolved||e.status==='SETTLED'||e.status==='VOID');
+  // Per-market detail table (APNL-08: from settlement_results)
   const mBody = document.getElementById('pnlMarketsTable');
-  if (settled.length===0) {
-    mBody.innerHTML='<tr><td colspan="5"><div class="empty"><div class="empty-icon">🏏</div><div class="empty-text">No settled markets yet</div></div></td></tr>';
+  if (allSettlementResults.length===0) {
+    mBody.innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-icon">🏏</div><div class="empty-text">No settled markets yet</div></div></td></tr>';
   } else {
-    mBody.innerHTML = settled.map(ev=>{
-      const ocs = allOutcomes.filter(o=>o.event_id===ev.id);
+    mBody.innerHTML = allSettlementResults.map((sr, idx) => {
+      const ev = allEvents.find(e=>e.id===sr.event_id);
+      const evTitle = ev ? sanitize(ev.title) : 'Unknown Market';
+      const winner = ev?.winning_outcome || (ev?.status==='VOID'?'VOID':'--');
+      const resultBadge = (ev?.status==='VOID')
+        ? '<span class="badge badge-void">VOID</span>'
+        : `<span class="badge badge-settled">${sanitize(winner)}</span>`;
+      const clientPnl = parseFloat(sr.total_client_pnl||0);
+      const commShare = parseFloat(sr.agent_commission_share||0);
+      const agentNet  = parseFloat(sr.agent_net_pnl||0);
+      const shareP    = parseFloat(sr.partnership_share_at_settlement||0);
+      const clientPnlColor = clientPnl >= 0 ? '#10b981' : '#ef4444';
+      const agentNetColor  = agentNet >= 0 ? '#10b981' : '#ef4444';
+
+      // Build per-client breakdown for this market
+      const ocs = ev ? allOutcomes.filter(o=>o.event_id===ev.id) : [];
       const ocIds = ocs.map(o=>o.id);
       const evOrders = allOrders.filter(o=>ocIds.includes(o.outcome_id));
-      const vol = evOrders.reduce((s,o)=>s+parseFloat(o.total_cost||0),0);
-      const winner = ev.winning_outcome || (ev.status==='VOID'?'VOID':'—');
-      const evStatus = ev.status==='VOID'?'<span class="badge badge-void">Voided</span>':'<span class="badge badge-settled">Settled</span>';
+      // Group by user
+      const byUser = {};
+      evOrders.forEach(o => {
+        if (!byUser[o.user_id]) byUser[o.user_id] = [];
+        byUser[o.user_id].push(o);
+      });
+      let detailRows = '';
+      Object.keys(byUser).forEach(uid => {
+        const client = myClients.find(c=>c.id===uid);
+        if (!client) return;
+        const uOrders = byUser[uid];
+        const totalStaked = uOrders.reduce((s,o)=>s+parseFloat(o.total_cost||0),0);
+        const totalShares = uOrders.reduce((s,o)=>s+parseFloat(o.shares||0),0);
+        let uPnl = 0;
+        uOrders.forEach(o => {
+          const won = (ev?.winning_outcome && allOutcomes.find(oc=>oc.id===o.outcome_id)?.title === ev.winning_outcome);
+          uPnl += won ? (parseFloat(o.shares||0) - parseFloat(o.total_cost||0)) : -parseFloat(o.total_cost||0);
+        });
+        const uPnlColor = uPnl >= 0 ? '#10b981' : '#ef4444';
+        // Commission for this client on this market (filter by notes containing event title)
+        const cComm = allTransactions
+          .filter(t=>t.transaction_type==='COMMISSION'&&t.receiver_id===uid&&t.notes&&ev&&t.notes.includes(ev.title))
+          .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+        detailRows += `<tr>
+          <td class="mono">${sanitize(client.login_id)}</td>
+          <td class="mono">${fmt(totalStaked)}</td>
+          <td class="mono">${fmt(totalShares,0)}</td>
+          <td class="mono" style="color:${uPnlColor};">${fmt(uPnl)}</td>
+          <td class="mono" style="color:#a78bfa;">${cComm > 0 ? fmt(cComm) : '--'}</td>
+        </tr>`;
+      });
+      if (!detailRows) detailRows = '<tr><td colspan="5" class="text-muted" style="text-align:center;padding:8px;">No client orders for this market</td></tr>';
+
       return `<tr>
-        <td class="text-white">${sanitize(ev.title)}</td>
-        <td>${evStatus}</td>
-        <td class="mono">🪙 ${fmt(vol)}</td>
-        <td style="font-size:0.8rem;color:#f59e0b;">${sanitize(winner)}</td>
-        <td class="mono text-muted">🪙 ${fmt(vol*mComm)}</td>
+        <td style="width:28px;text-align:center;"><span class="pnl-toggle" onclick="toggleMarketDetail(this)">&#9654;</span></td>
+        <td class="text-white">${evTitle}</td>
+        <td>${resultBadge}</td>
+        <td class="mono" style="color:${clientPnlColor};">${fmt(clientPnl)}</td>
+        <td class="mono" style="color:#a78bfa;">${fmt(commShare)}</td>
+        <td class="mono" style="color:${agentNetColor};">${fmt(agentNet)}</td>
+        <td class="mono text-muted">${fmt(shareP,0)}%</td>
+      </tr>
+      <tr class="pnl-detail-row" style="display:none;">
+        <td colspan="7">
+          <div class="detail-inner">
+            <table>
+              <thead><tr><th>Client</th><th>Staked</th><th>Shares</th><th>P&amp;L</th><th>Commission</th></tr></thead>
+              <tbody>${detailRows}</tbody>
+            </table>
+          </div>
+        </td>
       </tr>`;
     }).join('');
+  }
+}
+
+// Toggle expand/collapse for per-market detail rows
+function toggleMarketDetail(el) {
+  el.classList.toggle('open');
+  const detailRow = el.closest('tr').nextElementSibling;
+  if (detailRow && detailRow.classList.contains('pnl-detail-row')) {
+    detailRow.style.display = detailRow.style.display === 'none' ? 'table-row' : 'none';
   }
 }
 
