@@ -543,8 +543,7 @@ function renderMarkets() {
 
     // Outcome pills: match shows khai/lagai, fancy shows line
     const outcomePills = isFancy
-      ? (() => { const lv = parseFloat(ev.line_value ?? ev.base_line ?? 0); const g = parseInt(ev.fancy_gap || 1); const ln = g===1?Math.floor(lv):Math.round(lv)-1; const ly = g===1?Math.ceil(lv):Math.round(lv)+1; return `<span style="background:#0f172a;border:1px solid #334155;padding:2px 8px;border-radius:4px;font-size:0.72rem;"><strong style="color:#ef4444;">${ln}</strong> / <strong style="color:#10b981;">${ly}</strong></span>`; })()
-         <span style="background:#0f172a;border:1px solid #334155;padding:2px 8px;border-radius:4px;font-size:0.72rem;margin-left:4px;">${fancyTypeLabel(ev.fancy_type)}</span>`
+      ? (() => { const lv = parseFloat(ev.line_value ?? ev.base_line ?? 0); const g = parseInt(ev.fancy_gap || 1); const ln = g===1?Math.floor(lv):Math.round(lv)-1; const ly = g===1?Math.ceil(lv):Math.round(lv)+1; return `<span style="background:#0f172a;border:1px solid #334155;padding:2px 8px;border-radius:4px;font-size:0.72rem;"><strong style="color:#ef4444;">${ln}</strong> / <strong style="color:#10b981;">${ly}</strong></span> <span style="background:#0f172a;border:1px solid #334155;padding:2px 8px;border-radius:4px;font-size:0.72rem;margin-left:4px;">${fancyTypeLabel(ev.fancy_type)}</span>`; })()
       : (() => {
           const l = parseFloat(ev.lagai_rate ?? 0.50).toFixed(2);
           const k = parseFloat((parseFloat(l) + 0.05)).toFixed(2);
