@@ -13,9 +13,13 @@
 ## Git Repository
 
 ```bash
-cd /private/tmp/bhandai-rebuild
+git clone https://github.com/chawlabraham-png/bhandai-betting.git
+cd bhandai-betting
 git log --oneline -20  # see recent work
 ```
+
+**Remote:** https://github.com/chawlabraham-png/bhandai-betting.git
+**Branch:** main
 
 ## Tech Stack
 
@@ -177,9 +181,18 @@ These were deferred during v1:
 ## To Get Started
 
 ```bash
-cd /private/tmp/bhandai-rebuild
+git clone https://github.com/chawlabraham-png/bhandai-betting.git
+cd bhandai-betting
 python3 -m http.server 3000
 # Open http://localhost:3000
 ```
 
-For Supabase access, use the SQL Editor in the dashboard to run any `.sql` files.
+**Supabase Dashboard:** https://supabase.com/dashboard/project/vtxuzrkwnyhxciohwjjx
+Use the SQL Editor in the dashboard to run any `.sql` files from the `sql/` folder.
+
+## Current In-Progress Work
+
+- Fancy NO/YES gap display (44 NO / 45 YES with house gap) — just deployed
+- Position-based portfolio (no P&L word until settlement) — just committed
+- Match bets auto-expanded, fancy runs big font — just committed
+- Phase 8 code modularization fully done (all JS/CSS extracted)
