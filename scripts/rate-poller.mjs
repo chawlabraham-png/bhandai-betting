@@ -1,27 +1,28 @@
 /**
  * scripts/rate-poller.mjs
  * ─────────────────────────────────────────────────────────────────────────────
- * Mock rate poller — simulates a Sun Sports API feed and pushes lagai_rate
- * updates to the Supabase `events` table every second.
+ * Provider-agnostic rate poller. Fetches lagai_rate values from a configured
+ * provider and writes them to the Supabase `events` table every second.
  *
  * Usage:
- *   node scripts/rate-poller.mjs
+ *   SUPABASE_SERVICE_ROLE_KEY=eyJ... node scripts/rate-poller.mjs
  *
- * When you have the real API token, replace fetchMockRates() with a real
- * fetch() call to the Sun Sports endpoint and map its response shape to
- * the same { eventId, laagaiRate } format.
+ * Provider selection (defaults to mock):
+ *   RATE_PROVIDER=mock       — random drift from current DB rates (default)
+ *   RATE_PROVIDER=sunsports  — live Sun Sports API (also needs SUN_SPORTS_API_TOKEN)
+ *
+ * Each provider in scripts/providers/ must export:
+ *   init(events)   — called once with active events from DB
+ *   fetchRates()   — called each tick, returns [{ eventId, laagaiRate }]
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import { createClient } from '@supabase/supabase-js';
 
+// ── SUPABASE ─────────────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://vtxuzrkwnyhxciohwjjx.supabase.co';
-
-// The anon key is read-only for most tables due to RLS.
-// This script needs the service role key to write to `events`.
-// Get it from: Supabase Dashboard → Project Settings → API → service_role key
-// Run as: SUPABASE_SERVICE_ROLE_KEY=eyJ... node scripts/rate-poller.mjs
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 if (!SUPABASE_KEY) {
   console.error('[poller] ERROR: SUPABASE_SERVICE_ROLE_KEY env var is required.');
   console.error('         Get it from: Supabase Dashboard → Project Settings → API → service_role');
@@ -30,37 +31,25 @@ if (!SUPABASE_KEY) {
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: false }, // server script — no session needed
+  auth: { persistSession: false },
 });
 
-// ── CONFIGURATION ────────────────────────────────────────────────────────────
-const POLL_INTERVAL_MS = 1000;   // 1 second
-const RATE_DRIFT_MAX   = 0.03;   // max random drift per tick (simulates live movement)
-const RATE_MIN         = 1.05;
-const RATE_MAX         = 2.50;
+// ── PROVIDER LOADING ─────────────────────────────────────────────────────────
+const PROVIDER_NAME = process.env.RATE_PROVIDER || 'mock';
+const PROVIDER_MAP  = { mock: './providers/mock.mjs', sunsports: './providers/sunsports.mjs' };
 
-// ── MOCK API STATE ───────────────────────────────────────────────────────────
-// Mirrors the shape a Sun Sports API response would have after mapping.
-// Each entry represents one active match event.
-//
-// Real Sun Sports API response (typical shape) looks like:
-// {
-//   "status": "ok",
-//   "data": [
-//     { "match_id": "...", "team1": "India", "team2": "Australia",
-//       "lagai": 1.75, "khai": 1.80, "status": "active" },
-//     ...
-//   ]
-// }
-//
-// fetchMockRates() returns the same normalised shape:
-// [{ eventId: <supabase events.id>, laagaiRate: <number> }]
-//
-// When wiring up the real API, replace fetchMockRates() body only —
-// the rest of the loop stays the same.
+if (!PROVIDER_MAP[PROVIDER_NAME]) {
+  console.error(`[poller] ERROR: Unknown RATE_PROVIDER "${PROVIDER_NAME}". Valid: ${Object.keys(PROVIDER_MAP).join(', ')}`);
+  process.exit(1);
+}
 
-let mockState = null; // loaded once from DB, then drifted each tick
+const provider = await import(PROVIDER_MAP[PROVIDER_NAME]);
 
+// ── CONFIGURATION ─────────────────────────────────────────────────────────────
+const POLL_INTERVAL_MS = 1000;
+const MAX_ERRORS       = 10;
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
 async function loadActiveEvents() {
   const { data, error } = await supabase
     .from('events')
@@ -76,49 +65,9 @@ async function loadActiveEvents() {
   return data || [];
 }
 
-function clamp(val, min, max) {
-  return Math.min(max, Math.max(min, val));
-}
-
-function randomDrift() {
-  // Returns a small ± float to simulate live rate movement
-  return (Math.random() - 0.5) * 2 * RATE_DRIFT_MAX;
-}
-
-// Simulates a Sun Sports API response for active match events.
-// Returns: [{ eventId, laagaiRate }]
-function fetchMockRates() {
-  return mockState.map(function (ev) {
-    const drift = randomDrift();
-    const newRate = clamp(
-      parseFloat((ev.currentRate + drift).toFixed(2)),
-      RATE_MIN,
-      RATE_MAX
-    );
-    ev.currentRate = newRate; // persist drift across ticks
-    return { eventId: ev.id, laagaiRate: newRate };
-  });
-}
-
-// ── SWAP THIS FUNCTION FOR REAL API ─────────────────────────────────────────
-// async function fetchLiveRates(apiToken) {
-//   const res = await fetch('https://api.sunsports.example.com/v1/live-rates', {
-//     headers: { 'Authorization': `Bearer ${apiToken}` }
-//   });
-//   const json = await res.json();
-//   return json.data.map(match => ({
-//     eventId: match.match_id,    // adjust key to match your events.id foreign key
-//     laagaiRate: match.lagai,
-//   }));
-// }
-// ────────────────────────────────────────────────────────────────────────────
-
-// ── PUSH TO SUPABASE ─────────────────────────────────────────────────────────
 async function pushRates(rates) {
   if (!rates.length) return;
 
-  // Update each event individually — plain .update() so only lagai_rate is
-  // written and no NOT NULL columns (title, etc.) need to be present.
   const results = await Promise.all(rates.map(function (r) {
     return supabase
       .from('events')
@@ -133,21 +82,17 @@ async function pushRates(rates) {
   });
 }
 
-// ── MAIN LOOP ────────────────────────────────────────────────────────────────
-let tickCount = 0;
+// ── MAIN LOOP ─────────────────────────────────────────────────────────────────
+let tickCount         = 0;
 let consecutiveErrors = 0;
-const MAX_ERRORS = 10;
 
 async function tick() {
   tickCount++;
   try {
-    const rates = fetchMockRates(); // replace with await fetchLiveRates(API_TOKEN) later
+    const rates = await provider.fetchRates();
 
-    // Log a sample every 10 ticks to avoid console spam
     if (tickCount % 10 === 0) {
-      const sample = rates.slice(0, 3).map(function (r) {
-        return r.laagaiRate.toFixed(2);
-      }).join(', ');
+      const sample = rates.slice(0, 3).map(function (r) { return r.laagaiRate.toFixed(2); }).join(', ');
       console.log(`[poller] tick=${tickCount}  events=${rates.length}  sample=[${sample}...]`);
     }
 
@@ -164,7 +109,7 @@ async function tick() {
 }
 
 async function main() {
-  console.log('[poller] Starting rate poller — interval:', POLL_INTERVAL_MS, 'ms');
+  console.log(`[poller] Starting — provider: ${PROVIDER_NAME}, interval: ${POLL_INTERVAL_MS}ms`);
   console.log('[poller] Loading active match events from Supabase...');
 
   const events = await loadActiveEvents();
@@ -177,25 +122,16 @@ async function main() {
 
   console.log(`[poller] Tracking ${events.length} event(s):`);
   events.forEach(function (ev) {
-    console.log(`         • ${ev.id.slice(0, 8)}… "${ev.title}" (current lagai_rate: ${ev.lagai_rate})`);
+    console.log(`         • ${ev.id.slice(0, 8)}… "${ev.title}" (lagai_rate: ${ev.lagai_rate})`);
   });
 
-  // Seed mock state from DB's current rates so there's no jump on first tick
-  mockState = events.map(function (ev) {
-    return {
-      id: ev.id,
-      title: ev.title,
-      currentRate: parseFloat(ev.lagai_rate != null ? ev.lagai_rate : 1.50),
-    };
-  });
+  await provider.init(events);
 
   console.log('[poller] Running. Press Ctrl+C to stop.\n');
 
-  // Run first tick immediately, then on interval
   await tick();
   const intervalId = setInterval(tick, POLL_INTERVAL_MS);
 
-  // Graceful shutdown
   process.on('SIGINT', function () {
     clearInterval(intervalId);
     console.log('\n[poller] Stopped.');
