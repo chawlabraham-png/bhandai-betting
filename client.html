@@ -81,11 +81,10 @@
       </div>
       <button class="refresh-icon-btn" onclick="refreshData()">↻</button>
     </div>
-    <div id="portfolioSummary" style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px;margin-bottom:14px;display:none;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;">
+    <div id="portfolioSummary" style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px;margin-bottom:14px;display:none;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
       <div><div style="font-size:0.62rem;color:#64748b;text-transform:uppercase;font-weight:700;">Open</div><div class="mono" style="font-size:1rem;font-weight:700;color:white;margin-top:2px;" id="portOpenCount">0</div></div>
       <div><div style="font-size:0.62rem;color:#64748b;text-transform:uppercase;font-weight:700;">Staked</div><div class="mono" style="font-size:1rem;font-weight:700;color:white;margin-top:2px;" id="portStaked">🪙 0</div></div>
-      <div><div style="font-size:0.62rem;color:#64748b;text-transform:uppercase;font-weight:700;">Pot. Win</div><div class="mono" style="font-size:1rem;font-weight:700;color:#10b981;margin-top:2px;" id="portPotWin">🪙 0</div></div>
-      <div><div style="font-size:0.62rem;color:#64748b;text-transform:uppercase;font-weight:700;">Live P&amp;L</div><div class="mono" style="font-size:1rem;font-weight:700;margin-top:2px;" id="portNetPnl">—</div></div>
+      <div><div style="font-size:0.62rem;color:#64748b;text-transform:uppercase;font-weight:700;">Exposure</div><div class="mono" style="font-size:1rem;font-weight:700;color:#10b981;margin-top:2px;" id="portPotWin">🪙 0</div></div>
     </div>
     <div class="filter-row">
       <div class="filter-pill active" onclick="setPortfolioFilter('OPEN',this)">Open</div>
@@ -124,7 +123,7 @@
         <div class="acct-stat"><div class="acct-stat-lbl">Balance</div><div class="acct-stat-val">🪙 <span id="acctBalance">0</span></div></div>
         <div class="acct-stat"><div class="acct-stat-lbl">Open Bets</div><div class="acct-stat-val" id="acctOpenBets">0</div></div>
         <div class="acct-stat"><div class="acct-stat-lbl">Total Staked</div><div class="acct-stat-val" id="acctTotalStaked">🪙 0</div></div>
-        <div class="acct-stat"><div class="acct-stat-lbl">Net P&amp;L</div><div class="acct-stat-val" id="acctPnl" style="color:#64748b;">🪙 0</div></div>
+        <div class="acct-stat"><div class="acct-stat-lbl">Net Position</div><div class="acct-stat-val" id="acctPnl" style="color:#64748b;">🪙 0</div></div>
       </div>
     </div>
     <div class="section-head">Details</div>

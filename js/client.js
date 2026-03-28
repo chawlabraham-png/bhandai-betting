@@ -355,7 +355,7 @@
 
   function renderMatchGroup(ev) {
     var susp = ev.status === 'SUSPENDED';
-    var isExpanded = expandedMatchId === ev.id;
+    var isExpanded = true; // always show match bets, no click needed
 
     // Extract team names from "Team A vs Team B"
     var parts = ev.title.split(/\s+vs\s+/i);
@@ -375,7 +375,7 @@
     var openBetsHere = myOrders.filter(function (o) { return o.event_id === ev.id && o.status === 'OPEN'; }).length;
 
     var header = '' +
-    '<div class="match-group-header" onclick="toggleMatchGroup(\'' + ev.id + '\')">' +
+    '<div class="match-group-header">' +
       '<div class="team-avatars">' +
         '<div class="team-avatar" style="background:' + cA.bg + ';color:' + cA.fg + ';">' + initA + '</div>' +
         '<div class="team-vs">vs</div>' +
@@ -391,7 +391,6 @@
           (openBetsHere ? '<span class="mg-open-chip">📊 ' + openBetsHere + ' open</span>' : '') +
         '</div>' +
       '</div>' +
-      '<div class="mg-chevron">' + (isExpanded ? '▴' : '▾') + '</div>' +
     '</div>';
 
     // Event book bar -- always visible when user has open bets on this event.
@@ -486,7 +485,8 @@
     var lineNo  = gap === 1 ? Math.floor(rawLine) : Math.round(rawLine) - 1;
     var lineYes = gap === 1 ? Math.ceil(rawLine)  : Math.round(rawLine) + 1;
     var line  = rawLine; // keep for bet placement
-    var bp    = yesOc ? parseFloat(yesOc.back_price || 1.9).toFixed(2) : '1.90';
+    var bpRaw = yesOc ? parseFloat(yesOc.back_price || 1.9) : 1.9;
+    var bp    = bpRaw.toFixed(1); // show 1 decimal: "1.9" not "1.90"
     var susp  = ev.status === 'SUSPENDED';
     var openBetsHere = myOrders.filter(function (o) { return o.event_id === ev.id && o.status === 'OPEN'; }).length;
 
@@ -507,20 +507,20 @@
     } else {
       var yesBtn = '';
       if (yesOc) {
-        yesBtn = '<div class="fc-yes-btn" data-oc="' + yesOc.id + '" onclick="openFancyBetSlip(\'' + ev.id + '\',\'' + yesOc.id + '\',\'YES\',' + bp + ',' + line + ',' + lineNo + ',' + lineYes + ',\'' + sanitize(ev.title).replace(/'/g, "\\'") + '\')">' +
-          '<div class="fc-yn-label">YES ✓</div>' +
-          '<div class="fc-yn-odds">' + bp + '</div>' +
-          '<div class="fc-yn-desc">&ge; ' + lineYes + '</div>' +
+        yesBtn = '<div class="fc-yes-btn" data-oc="' + yesOc.id + '" onclick="openFancyBetSlip(\'' + ev.id + '\',\'' + yesOc.id + '\',\'YES\',' + bpRaw + ',' + line + ',' + lineNo + ',' + lineYes + ',\'' + sanitize(ev.title).replace(/'/g, "\\'") + '\')">' +
+          '<div class="fc-yn-runs">' + lineYes + '</div>' +
+          '<div class="fc-yn-label" style="font-size:0.6rem;">YES</div>' +
+          '<div class="fc-yn-odds" style="font-size:0.65rem;color:#64748b;">' + bp + '</div>' +
         '</div>';
       } else {
         yesBtn = '<div style="font-size:0.72rem;color:#475569;text-align:center;padding:10px;">No rates</div>';
       }
       var noBtn = '';
       if (noOc) {
-        noBtn = '<div class="fc-no-btn" data-oc="' + noOc.id + '" onclick="openFancyBetSlip(\'' + ev.id + '\',\'' + noOc.id + '\',\'NO\',' + bp + ',' + line + ',' + lineNo + ',' + lineYes + ',\'' + sanitize(ev.title).replace(/'/g, "\\'") + '\')">' +
-          '<div class="fc-yn-label">NO ✗</div>' +
-          '<div class="fc-yn-odds">' + bp + '</div>' +
-          '<div class="fc-yn-desc">&le; ' + lineNo + '</div>' +
+        noBtn = '<div class="fc-no-btn" data-oc="' + noOc.id + '" onclick="openFancyBetSlip(\'' + ev.id + '\',\'' + noOc.id + '\',\'NO\',' + bpRaw + ',' + line + ',' + lineNo + ',' + lineYes + ',\'' + sanitize(ev.title).replace(/'/g, "\\'") + '\')">' +
+          '<div class="fc-yn-runs">' + lineNo + '</div>' +
+          '<div class="fc-yn-label" style="font-size:0.6rem;">NO</div>' +
+          '<div class="fc-yn-odds" style="font-size:0.65rem;color:#64748b;">' + bp + '</div>' +
         '</div>';
       }
       bodyHtml = '' +

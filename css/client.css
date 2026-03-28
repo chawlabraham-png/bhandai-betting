@@ -115,7 +115,8 @@ body { min-height: 100vh; overflow-x: hidden; padding-bottom: 72px; }
 .fc-yn-label { font-size: 0.78rem; font-weight: 700; }
 .fc-yes-btn .fc-yn-label { color: #10b981; }
 .fc-no-btn .fc-yn-label { color: #ef4444; }
-.fc-yn-odds { font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 700; color: white; line-height: 1.1; }
+.fc-yn-runs { font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; font-weight: 800; color: white; line-height: 1.1; }
+.fc-yn-odds { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; font-weight: 500; color: #64748b; line-height: 1.1; }
 .fc-yn-desc { font-size: 0.6rem; color: #64748b; margin-top: 2px; }
 
 /* ── BET SLIP (slide-up) ─────────────────────────────────────── */
