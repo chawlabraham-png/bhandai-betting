@@ -52,23 +52,39 @@
 
 <!-- ════ TAB: MARKETS ════ -->
 <div id="tab-markets" class="tab-content active">
-  <div class="content-wrap">
-    <div id="pullIndicator">↓ Pull to refresh</div>
-    <div id="announceContainer"></div>
-    <div class="market-search-wrap">
-      <span class="market-search-icon">🔍</span>
-      <input type="text" id="marketSearch" class="market-search-input" placeholder="Search markets…" oninput="renderMarketsTab()">
+
+  <!-- ── LIST VIEW ── -->
+  <div id="matchListView">
+    <div class="content-wrap">
+      <div id="pullIndicator">↓ Pull to refresh</div>
+      <div id="announceContainer"></div>
+      <div class="market-search-wrap">
+        <span class="market-search-icon">🔍</span>
+        <input type="text" id="marketSearch" class="market-search-input" placeholder="Search markets…" oninput="renderMarketsTab()">
+      </div>
+      <div class="filter-row">
+        <div class="filter-pill active" id="mf-ALL" onclick="setMarketFilter('ALL',this)">All</div>
+        <div class="filter-pill" id="mf-Cricket" onclick="setMarketFilter('Cricket',this)">🏏 Cricket</div>
+        <div class="filter-pill" id="mf-Football" onclick="setMarketFilter('Football',this)">⚽ Football</div>
+        <div class="filter-pill" id="mf-Tennis" onclick="setMarketFilter('Tennis',this)">🎾 Tennis</div>
+        <div class="filter-pill" id="mf-Politics" onclick="setMarketFilter('Politics',this)">🗳️ Politics</div>
+        <div class="filter-pill" id="mf-Other" onclick="setMarketFilter('Other',this)">🎲 Other</div>
+      </div>
+      <div id="marketsListContainer"><div class="skel-card skeleton"></div><div class="skel-card skeleton"></div><div class="skel-card skeleton" style="height:80px;"></div></div>
     </div>
-    <div class="filter-row">
-      <div class="filter-pill active" id="mf-ALL" onclick="setMarketFilter('ALL',this)">All</div>
-      <div class="filter-pill" id="mf-Cricket" onclick="setMarketFilter('Cricket',this)">🏏 Cricket</div>
-      <div class="filter-pill" id="mf-Football" onclick="setMarketFilter('Football',this)">⚽ Football</div>
-      <div class="filter-pill" id="mf-Tennis" onclick="setMarketFilter('Tennis',this)">🎾 Tennis</div>
-      <div class="filter-pill" id="mf-Politics" onclick="setMarketFilter('Politics',this)">🗳️ Politics</div>
-      <div class="filter-pill" id="mf-Other" onclick="setMarketFilter('Other',this)">🎲 Other</div>
-    </div>
-    <div id="marketsListContainer"><div class="skel-card skeleton"></div><div class="skel-card skeleton"></div><div class="skel-card skeleton" style="height:80px;"></div></div>
   </div>
+
+  <!-- ── DETAIL VIEW ── -->
+  <div id="matchDetailView" style="display:none;">
+    <div class="detail-header">
+      <button class="detail-back-btn" onclick="showMatchList()">‹ Back</button>
+      <div class="detail-match-title" id="detailMatchTitle">—</div>
+    </div>
+    <div class="content-wrap">
+      <div id="matchDetailContainer"></div>
+    </div>
+  </div>
+
 </div>
 
 <!-- ════ TAB: PORTFOLIO ════ -->

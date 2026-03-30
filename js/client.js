@@ -17,6 +17,8 @@
   var marketSearch = '';
   var isSubmitting = false;
   var expandedMatchId = null;
+  var matchDetailMode = false;
+  var currentMatchId  = null;
   var bsState = { eventId: null, outcomeId: null, side: null, backPrice: null, isFancy: false, line: null, oddsAtOpen: null };
   var _autoRefreshInterval = null;
   var _realtimeChannel = null;
@@ -314,13 +316,23 @@
 
   // ── MARKETS ─────────────────────────────────────────────────
   function renderMarketsTab() {
-    var evs = allEvents.filter(function (e) { return e.status !== 'SETTLED' && e.status !== 'VOID'; });
+    if (matchDetailMode) { renderMatchDetailView(); return; }
+    renderMatchListView();
+  }
+  Client.renderMarketsTab = renderMarketsTab;
+
+  // ── LIST VIEW ───────────────────────────────────────────────────
+  function renderMatchListView() {
+    var evs = allEvents.filter(function (e) {
+      return e.status !== 'SETTLED' && e.status !== 'VOID' && e.market_type !== 'FANCY';
+    });
     if (marketFilter !== 'ALL') evs = evs.filter(function (e) { return e.category === marketFilter; });
 
-    // Search filter
     var searchEl = document.getElementById('marketSearch');
     var q = (searchEl ? searchEl.value : '').trim().toLowerCase();
     if (q) evs = evs.filter(function (e) { return (e.title||'').toLowerCase().includes(q) || (e.category||'').toLowerCase().includes(q); });
+
+    evs.sort(function (a,b) { return (a.status==='SUSPENDED'?1:0) - (b.status==='SUSPENDED'?1:0); });
 
     var con = document.getElementById('marketsListContainer');
     if (!evs.length) {
@@ -328,19 +340,128 @@
       return;
     }
 
-    // Split match vs fancy
-    var matchEvs = evs.filter(function (e) { return e.market_type !== 'FANCY'; });
-    var fancyEvs = evs.filter(function (e) { return e.market_type === 'FANCY'; });
-
-    // Sort matches: ACTIVE first, SUSPENDED last
-    matchEvs.sort(function (a,b) { return (a.status==='SUSPENDED'?1:0) - (b.status==='SUSPENDED'?1:0); });
-
-    var html = '';
-    if (matchEvs.length) html += matchEvs.map(renderMatchGroup).join('');
-    if (fancyEvs.length) html += '<div class="section-head" style="margin-top:' + (matchEvs.length?14:0) + 'px;">Session Bets</div>' + fancyEvs.map(renderFancyCard).join('');
-    con.innerHTML = html;
+    con.innerHTML = evs.map(function (ev) {
+      var susp = ev.status === 'SUSPENDED';
+      var parts = ev.title.split(/\s+vs\s+/i);
+      var teamA = (parts[0] || '').trim() || ev.title;
+      var teamB = (parts[1] || '').trim() || '';
+      var initA = teamA.slice(0,2).toUpperCase();
+      var initB = teamB ? teamB.slice(0,2).toUpperCase() : '??';
+      var cA = _avatarColor(teamA), cB = _avatarColor(teamB || 'XX');
+      var openBetsHere = myOrders.filter(function (o) { return o.event_id === ev.id && o.status === 'OPEN'; }).length;
+      return '<div class="match-list-card" onclick="showMatchDetail(\'' + ev.id + '\')">' +
+        '<div class="mlc-avatars">' +
+          '<div class="mlc-avatar" style="background:' + cA.bg + ';color:' + cA.fg + ';">' + initA + '</div>' +
+          '<div class="mlc-vs">vs</div>' +
+          '<div class="mlc-avatar" style="background:' + cB.bg + ';color:' + cB.fg + ';">' + initB + '</div>' +
+        '</div>' +
+        '<div class="mlc-info">' +
+          '<div class="mlc-title">' + sanitize(ev.title) + '</div>' +
+          (ev.sub_category ? '<div class="mlc-sub">' + sanitize(ev.sub_category) + '</div>' : '') +
+          '<div class="mlc-meta">' +
+            (susp
+              ? '<span class="mlc-badge susp">⏸ Suspended</span>'
+              : '<span class="mlc-badge live"><span class="mlc-live-dot"></span>Live</span>') +
+            (openBetsHere ? '<span class="mlc-open-chip">📊 ' + openBetsHere + ' open</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="mlc-chevron">›</div>' +
+      '</div>';
+    }).join('');
   }
-  Client.renderMarketsTab = renderMarketsTab;
+
+  // ── DETAIL VIEW ─────────────────────────────────────────────────
+  function renderMatchOddsCard(ev) {
+    var susp = ev.status === 'SUSPENDED';
+    var ocs  = allOutcomes.filter(function (o) { return o.event_id === ev.id; });
+    var oc0  = ocs[0];
+    var oc1  = ocs[1];
+    var favTeam   = ev.rate_team || (oc0 ? oc0.title : null) || ev.title;
+    var otherTeam = (oc1 ? oc1.title : null) || 'Team 2';
+
+    var openBetsHere = myOrders.filter(function (o) { return o.event_id === ev.id && o.status === 'OPEN'; }).length;
+    var ebookBar = '';
+    if (openBetsHere) {
+      var book = calcEventBook(ev.id);
+      if (book) {
+        var fwC = book.favWins  >= 0 ? '#10b981' : '#ef4444';
+        var flC = book.favLoses >= 0 ? '#10b981' : '#ef4444';
+        ebookBar =
+          '<div class="event-book-bar" id="ebook_' + ev.id + '">' +
+            '<div class="ebook-item"><span class="ebook-label">If ' + sanitize(favTeam) + ' wins</span><span class="ebook-val" id="ebook_fw_' + ev.id + '" style="color:' + fwC + ';">' + (book.favWins>=0?'+':'') + '🪙' + fmt(Math.abs(book.favWins),0) + '</span></div>' +
+            '<div class="ebook-divider"></div>' +
+            '<div class="ebook-item"><span class="ebook-label">If ' + sanitize(otherTeam) + ' wins</span><span class="ebook-val" id="ebook_fl_' + ev.id + '" style="color:' + flC + ';">' + (book.favLoses>=0?'+':'') + '🪙' + fmt(Math.abs(book.favLoses),0) + '</span></div>' +
+          '</div>';
+      }
+    }
+
+    var body = '';
+    if (susp) {
+      body = '<div class="susp-body"><div class="susp-body-text">SUSPENDED</div><div class="susp-body-hint">Betting paused — resuming shortly</div></div>';
+    } else {
+      var lagai = parseFloat(ev.lagai_rate != null ? ev.lagai_rate : 0.50);
+      var khai  = parseFloat((lagai + 0.05).toFixed(2));
+      var tableRows = '';
+      if (oc0) {
+        tableRows =
+          '<div class="lk-table-row" id="lkrow_' + ev.id + '">' +
+            '<div class="lk-td-team">' + sanitize(favTeam) + '</div>' +
+            '<div class="lk-td lagai-cell lk-rate" onclick="openLKBetSlip(\'' + ev.id + '\',\'' + oc0.id + '\',\'LAGAI\',' + lagai + ',\'' + sanitize(favTeam).replace(/'/g, "\\'") + '\',\'' + sanitize(ev.title).replace(/'/g, "\\'") + '\')">' + lagai.toFixed(2) + '</div>' +
+            '<div class="lk-td khai-cell lk-rate" onclick="openLKBetSlip(\'' + ev.id + '\',\'' + (oc1 ? oc1.id : oc0.id) + '\',\'KHAI\',' + khai + ',\'' + sanitize(favTeam).replace(/'/g, "\\'") + '\',\'' + sanitize(ev.title).replace(/'/g, "\\'") + '\')">' + khai.toFixed(2) + '</div>' +
+          '</div>' +
+          '<div class="lk-table-row"><div class="lk-td-team susp-team">' + sanitize(otherTeam) + '</div><div class="lk-td susp-cell">&mdash;</div><div class="lk-td susp-cell">&mdash;</div></div>';
+      } else {
+        tableRows = '<div style="padding:10px 0 6px;text-align:center;color:#475569;font-size:0.78rem;">Rates loading</div>';
+      }
+      body =
+        '<div class="lk-table">' +
+          '<div class="lk-table-header"><div></div><div class="lk-th lagai-h">LAGAI</div><div class="lk-th khai-h">KHAI</div></div>' +
+          tableRows +
+        '</div>';
+    }
+
+    return '<div class="match-odds-card" id="mc_' + ev.id + '">' + ebookBar + body + '</div>';
+  }
+
+  function renderMatchDetailView() {
+    var ev = allEvents.find(function (e) { return e.id === currentMatchId; });
+    if (!ev) return;
+
+    var titleEl = document.getElementById('detailMatchTitle');
+    if (titleEl) titleEl.textContent = ev.title;
+
+    var linkedFancies = allEvents.filter(function (fe) {
+      return fe.market_type === 'FANCY'
+        && fe.parent_event_id === currentMatchId
+        && fe.status !== 'SETTLED'
+        && fe.status !== 'VOID';
+    });
+
+    var html = renderMatchOddsCard(ev);
+    if (linkedFancies.length) {
+      html += '<div class="section-head" style="margin-top:14px;">Session Bets</div>';
+      html += linkedFancies.map(renderFancyCard).join('');
+    }
+    document.getElementById('matchDetailContainer').innerHTML = html;
+  }
+
+  function showMatchList() {
+    matchDetailMode = false;
+    currentMatchId  = null;
+    document.getElementById('matchListView').style.display   = '';
+    document.getElementById('matchDetailView').style.display = 'none';
+    renderMatchListView();
+  }
+  Client.showMatchList = showMatchList;
+
+  function showMatchDetail(eventId) {
+    matchDetailMode = true;
+    currentMatchId  = eventId;
+    document.getElementById('matchListView').style.display   = 'none';
+    document.getElementById('matchDetailView').style.display = '';
+    renderMatchDetailView();
+  }
+  Client.showMatchDetail = showMatchDetail;
 
   function _avatarColor(seed) {
     var colors = [
@@ -353,7 +474,8 @@
     return { bg: pair[0], fg: pair[1] };
   }
 
-  function renderMatchGroup(ev) {
+  function renderMatchGroup(ev, linkedFancies) {
+    linkedFancies = linkedFancies || [];
     var susp = ev.status === 'SUSPENDED';
     var isExpanded = true; // always show match bets, no click needed
 
@@ -467,7 +589,15 @@
       }
     }
 
-    return '<div class="match-group' + (susp?' suspended':'') + (isExpanded?' expanded':'') + '" id="mc_' + ev.id + '">' + header + ebookBar + body + '</div>';
+    var fancySection = '';
+    if (linkedFancies.length) {
+      fancySection = '<div class="match-fancy-section">' +
+        '<div class="match-fancy-head">Session Bets</div>' +
+        linkedFancies.map(renderFancyCard).join('') +
+        '</div>';
+    }
+
+    return '<div class="match-group' + (susp?' suspended':'') + (isExpanded?' expanded':'') + '" id="mc_' + ev.id + '">' + header + ebookBar + body + fancySection + '</div>';
   }
 
   function toggleMatchGroup(eventId) {
@@ -1638,7 +1768,9 @@
   window.placeAnotherBet = placeAnotherBet;
   window.updateBetSlipPreview = updateBetSlipPreview;
   window.resetBsCountdown = resetBsCountdown;
-  window.toggleMatchGroup = toggleMatchGroup;
+  window.toggleMatchGroup  = toggleMatchGroup;
+  window.showMatchList     = showMatchList;
+  window.showMatchDetail   = showMatchDetail;
   window.openLKBetSlip = openLKBetSlip;
   window.openBetSlip = openBetSlip;
   window.openFancyBetSlip = openFancyBetSlip;

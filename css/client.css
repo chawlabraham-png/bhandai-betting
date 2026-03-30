@@ -362,6 +362,33 @@ input[type=number] { -moz-appearance: textfield; }
 .susp-body { padding: 18px 14px; text-align: center; }
 .susp-body-text { font-size: 1.1rem; font-weight: 900; color: #f59e0b; letter-spacing: 0.2em; }
 .susp-body-hint { font-size: 0.72rem; color: #64748b; margin-top: 6px; }
+.match-fancy-section { border-top: 1px solid #334155; padding: 10px 12px 4px; }
+.match-fancy-head { font-size: 0.6rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+
+/* ── MATCH LIST VIEW ──────────────────────────────────────────── */
+.match-list-card { background: #1e293b; border: 1px solid #334155; border-radius: 14px; margin-bottom: 8px; padding: 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; border-left: 3px solid #6366f1; }
+.match-list-card:active { background: #263548; }
+.match-list-card.suspended { border-left-color: #f59e0b; opacity: 0.75; }
+.mlc-avatars { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.mlc-avatar { width: 32px; height: 32px; border-radius: 8px; font-size: 0.55rem; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.mlc-vs { font-size: 0.55rem; color: #475569; font-weight: 700; }
+.mlc-info { flex: 1; min-width: 0; }
+.mlc-title { font-size: 0.88rem; font-weight: 700; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mlc-sub { font-size: 0.67rem; color: #64748b; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mlc-meta { display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+.mlc-badge { font-size: 0.6rem; font-weight: 700; padding: 2px 7px; border-radius: 10px; display: inline-flex; align-items: center; gap: 3px; }
+.mlc-badge.live { background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
+.mlc-badge.susp { background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
+.mlc-live-dot { width: 5px; height: 5px; border-radius: 50%; background: #10b981; display: inline-block; }
+.mlc-open-chip { font-size: 0.6rem; font-weight: 700; color: #818cf8; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); border-radius: 10px; padding: 2px 7px; }
+.mlc-chevron { font-size: 1.5rem; color: #475569; flex-shrink: 0; line-height: 1; }
+
+/* ── MATCH DETAIL VIEW ────────────────────────────────────────── */
+.detail-header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: #0f172a; border-bottom: 1px solid #1e293b; position: sticky; top: 56px; z-index: 20; }
+.detail-back-btn { background: rgba(255,255,255,0.06); border: 1px solid #334155; color: #94a3b8; border-radius: 8px; padding: 7px 13px; font-size: 0.82rem; font-weight: 600; cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
+.detail-back-btn:active { background: rgba(255,255,255,0.12); }
+.detail-match-title { font-size: 0.88rem; font-weight: 700; color: white; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.match-odds-card { background: #1e293b; border: 1px solid #334155; border-radius: 14px; margin-bottom: 14px; overflow: hidden; border-left: 3px solid #6366f1; }
 .suspended-fancy-msg { padding: 12px 14px; text-align: center; font-size: 0.85rem; font-weight: 700; color: #f59e0b; letter-spacing: 0.1em; }
 
 /* ── EVENT BOOK BAR ───────────────────────────────────────────── */
