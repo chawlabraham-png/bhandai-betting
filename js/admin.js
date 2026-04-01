@@ -8,6 +8,7 @@
 let currentUser = null;
 let allUsers = [], allTransactions = [], allEvents = [], allOutcomes = [], allOrders = [], allAnnouncements = [], allAuditLogs = [];
 let allSettlementResults = [];
+let adminWallet = { reserve_cash: 0, coins_stock: 0, id: null };
 let activeTab = 'dashboard';
 let roleFilter = 'AGENT';
 let catFilter = 'ALL';
@@ -56,7 +57,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 async function refreshData() {
   document.getElementById('lastRefreshed').textContent = 'Updated ' + new Date().toLocaleTimeString();
-  const [u, tx, ev, oc, ord, ann, al, sr] = await Promise.all([
+  const [u, tx, ev, oc, ord, ann, al, sr, aw] = await Promise.all([
     sb.from('betting_users').select('*').order('created_at', { ascending: false }),
     sb.from('credit_transactions').select('*').order('created_at', { ascending: false }).limit(1000),
     sb.from('events').select('*').order('created_at', { ascending: false }),
@@ -64,7 +65,8 @@ async function refreshData() {
     sb.from('orders').select('*').order('created_at', { ascending: false }).limit(2000),
     sb.from('platform_announcements').select('*').order('created_at', { ascending: false }),
     sb.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(500),
-    sb.from('settlement_results').select('*')
+    sb.from('settlement_results').select('*'),
+    sb.from('admin_wallet').select('*').limit(1)
   ]);
   allUsers = u.data || [];
   allTransactions = tx.data || [];
@@ -74,6 +76,7 @@ async function refreshData() {
   allAnnouncements = ann.data || [];
   allAuditLogs = al.data || [];
   allSettlementResults = sr.data || [];
+  if (aw.data?.[0]) adminWallet = aw.data[0];
 
   // Sidebar: total coins in circulation (agents + clients)
   const totalInMarket = allUsers.filter(u => u.role !== 'ADMIN').reduce((s, u) => s + parseFloat(u.balance || 0), 0);
@@ -434,17 +437,25 @@ function renderLedger() {
   document.getElementById('ledgerWithdrawals').textContent = totalWithdrawals.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
   document.getElementById('ledgerCashSettled').textContent = totalCashSettled.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
 
-  // Reconciliation: net in circulation = deposited − agent_returns − cash_settled + market_settlements
-  const netIssued = totalDeposits + totalSettlements - totalWithdrawals - totalCashSettled;
-  const drift = netIssued - totalBals;
+  // Reconciliation: minted coins + settlement payouts should equal sum of all user balances
+  // B10: settlements/commissions increase user balances without touching coins_stock, so add them in
+  const coinsStock = parseFloat(adminWallet.coins_stock || 0);
+  const totalSettlementPayouts = allTransactions
+    .filter(t => t.transaction_type === 'SETTLEMENT' || t.transaction_type === 'COMMISSION' || t.transaction_type === 'VOID_REFUND')
+    .reduce((s,t) => s + parseFloat(t.amount||0), 0);
+  const expectedInCirculation = coinsStock + totalSettlementPayouts;
+  const drift = expectedInCirculation - totalBals;
   const reconEl = document.getElementById('reconBanner');
   reconEl.style.display = 'block';
-  if (Math.abs(drift) < 0.01) {
+  if (coinsStock === 0) {
     reconEl.className = 'recon-ok';
-    reconEl.textContent = `✅ Chip Integrity OK — 🪙${netIssued.toLocaleString(undefined,{minimumFractionDigits:2})} in net circulation. All balances accounted for.`;
+    reconEl.textContent = `ℹ️ No coins stocked yet — set reserve cash and mint coins in Settings to enable drift tracking.`;
+  } else if (Math.abs(drift) < 0.01) {
+    reconEl.className = 'recon-ok';
+    reconEl.textContent = `✅ Chip Integrity OK — 🪙${expectedInCirculation.toLocaleString(undefined,{minimumFractionDigits:2})} expected in circulation (🪙${coinsStock.toLocaleString(undefined,{minimumFractionDigits:2})} minted + 🪙${totalSettlementPayouts.toLocaleString(undefined,{minimumFractionDigits:2})} settled). All balances accounted for.`;
   } else {
     reconEl.className = 'recon-warn';
-    reconEl.innerHTML = `⚠️ Chip Drift Detected — Net in circulation: 🪙${netIssued.toLocaleString(undefined,{minimumFractionDigits:2})}, In wallets: 🪙${totalBals.toLocaleString(undefined,{minimumFractionDigits:2})}, Drift: 🪙${Math.abs(drift).toFixed(2)} ${drift > 0 ? '(missing from wallets)' : '(extra in wallets)'}`;
+    reconEl.innerHTML = `⚠️ Chip Drift Detected — Expected: 🪙${expectedInCirculation.toLocaleString(undefined,{minimumFractionDigits:2})}, In wallets: 🪙${totalBals.toLocaleString(undefined,{minimumFractionDigits:2})}, Drift: 🪙${Math.abs(drift).toFixed(2)} ${drift > 0 ? '(missing from wallets)' : '(extra in wallets)'}`;
   }
 
   // Balance Register
@@ -750,7 +761,9 @@ function renderSettings() {
   document.getElementById('statTotalEvents').textContent = allEvents.length;
   document.getElementById('statTotalOrders').textContent = allOrders.length;
   loadPlatformConfig();
+  renderAdminWallet();
   renderBalanceSheet();
+  renderAccountingBS();
 }
 
 function computeBalanceSheet() {
@@ -765,7 +778,8 @@ function computeBalanceSheet() {
   const totalCoins       = coinsWithAgents + coinsWithClients; // admin holds nothing; coins are minted on deposit
 
   // Agent receivable: coins given to agents on credit − returned − cash settled
-  const givenToAgents    = allTransactions.filter(t => t.transaction_type === 'DEPOSIT'    && t.sender_id   === currentUser.id && agentIds.has(t.receiver_id)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  // B8: include CREDIT_ISSUE alongside DEPOSIT — new agent deposits use CREDIT_ISSUE
+  const givenToAgents    = allTransactions.filter(t => (t.transaction_type === 'DEPOSIT' || t.transaction_type === 'CREDIT_ISSUE') && t.sender_id === currentUser.id && agentIds.has(t.receiver_id)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
   const returnedByAgents = allTransactions.filter(t => t.transaction_type === 'WITHDRAWAL' && t.receiver_id === currentUser.id && agentIds.has(t.sender_id)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
   const cashSettled      = allTransactions.filter(t => t.transaction_type === 'AGENT_SETTLEMENT').reduce((s,t)=>s+parseFloat(t.amount||0),0);
   const agentReceivable  = givenToAgents - returnedByAgents - cashSettled;
@@ -774,7 +788,7 @@ function computeBalanceSheet() {
   const reserveCash = cashSettled;
 
   // --- EQUITY ---
-  const ownerEquity = allTransactions.filter(t => t.transaction_type === 'ADMIN_MINT').reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  const ownerEquity = parseFloat(adminWallet.reserve_cash || 0) + parseFloat(adminWallet.coins_stock || 0);
 
   // --- P&L from betting ---
   const settledOrders   = allOrders.filter(o => o.status === 'SETTLED');
@@ -794,6 +808,9 @@ function renderBalanceSheet() {
   document.getElementById('bsAgentReceivable').textContent  = fmt(bs.agentReceivable);
   document.getElementById('bsReserveCash').textContent      = fmt(bs.reserveCash);
   document.getElementById('bsOwnerEquity').textContent      = fmt(bs.ownerEquity);
+  document.getElementById('bsWalletReserve').textContent    = fmt(parseFloat(adminWallet.reserve_cash || 0));
+  document.getElementById('bsWalletStock').textContent      = fmt(parseFloat(adminWallet.coins_stock || 0));
+  renderAccountingBS();
   const pnlEl = document.getElementById('bsPlatformPnl');
   pnlEl.textContent = (bs.platformPnl >= 0 ? '+' : '') + fmt(bs.platformPnl);
   pnlEl.parentElement.style.color = bs.platformPnl >= 0 ? '#10b981' : '#ef4444';
@@ -813,6 +830,139 @@ function renderBalanceSheet() {
       noteEl.style.color = '#f59e0b';
     }
   }
+}
+
+// ── ACCOUNTING BALANCE SHEET ──────────────────────────────────────
+function computeAccountingBS() {
+  const agents    = allUsers.filter(u => u.role === 'AGENT');
+  const clients   = allUsers.filter(u => u.role === 'CLIENT');
+  const agentIds  = new Set(agents.map(a => a.id));
+  const clientIds = new Set(clients.map(c => c.id));
+
+  // ── ASSETS ────────────────────────────────────────────────────────
+  const reserveCash  = parseFloat(adminWallet.reserve_cash || 0);
+  const coinsStock   = parseFloat(adminWallet.coins_stock  || 0);
+  const playingCash  = [...agents, ...clients].reduce((s,u) => s + parseFloat(u.balance||0), 0);
+
+  // Agent receivable = coins issued to agents − chips returned − cash settled by agents
+  const issuedToAgents   = allTransactions.filter(t => (t.transaction_type === 'DEPOSIT' || t.transaction_type === 'CREDIT_ISSUE') && t.sender_id === currentUser.id && agentIds.has(t.receiver_id)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  const returnedByAgents = allTransactions.filter(t => t.transaction_type === 'WITHDRAWAL' && t.receiver_id === currentUser.id && agentIds.has(t.sender_id)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  const cashFromAgents   = allTransactions.filter(t => t.transaction_type === 'AGENT_SETTLEMENT' && agentIds.has(t.sender_id)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  const agentReceivable  = issuedToAgents - returnedByAgents - cashFromAgents;
+
+  // Client receivable = coins issued to clients directly (by admin) − chips returned
+  const issuedToClients  = allTransactions.filter(t => (t.transaction_type === 'DEPOSIT' || t.transaction_type === 'CREDIT_ISSUE') && t.sender_id === currentUser.id && clientIds.has(t.receiver_id)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  const returnedByClients = allTransactions.filter(t => t.transaction_type === 'WITHDRAWAL' && t.receiver_id === currentUser.id && clientIds.has(t.sender_id)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  const clientReceivable = issuedToClients - returnedByClients;
+
+  // ── LIABILITIES + EQUITY ─────────────────────────────────────────
+  const ownerEquity = reserveCash + coinsStock; // capital introduced by admin (cash + minted coins)
+
+  // P&L from settled bets
+  const settledOrders   = allOrders.filter(o => o.status === 'SETTLED');
+  const totalStakesLost = settledOrders.reduce((s,o) => s + parseFloat(o.total_cost||0), 0);
+  const totalPayoutsWon = allTransactions.filter(t => t.transaction_type === 'SETTLEMENT').reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  const platformPnl     = totalStakesLost - totalPayoutsWon; // positive = platform profit
+
+  // Payables only apply when admin owes (negative receivable)
+  const agentPayable  = Math.max(0, -agentReceivable);
+  const clientPayable = Math.max(0, -clientReceivable);
+  const agentReceivableDisplay  = Math.max(0, agentReceivable);
+  const clientReceivableDisplay = Math.max(0, clientReceivable);
+
+  const assetsTotal = reserveCash + coinsStock + agentReceivableDisplay + clientReceivableDisplay + playingCash;
+  const liabTotal   = ownerEquity + platformPnl + agentPayable + clientPayable;
+
+  return { reserveCash, coinsStock, agentReceivable, clientReceivable, agentReceivableDisplay, clientReceivableDisplay, playingCash, ownerEquity, platformPnl, agentPayable, clientPayable, assetsTotal, liabTotal };
+}
+
+function renderAccountingBS() {
+  const bs  = computeAccountingBS();
+  const fmt = n => parseFloat(n||0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  const sign = n => (n >= 0 ? '+' : '') + fmt(n);
+
+  document.getElementById('absReserveCash').textContent  = fmt(bs.reserveCash);
+  document.getElementById('absCoinsStock').textContent   = fmt(bs.coinsStock);
+  document.getElementById('absAgentRec').textContent     = fmt(bs.agentReceivableDisplay);
+  document.getElementById('absClientRec').textContent    = fmt(bs.clientReceivableDisplay);
+  document.getElementById('absPlayingCash').textContent  = fmt(bs.playingCash);
+  document.getElementById('absAssetsTotal').textContent  = fmt(bs.assetsTotal);
+
+  document.getElementById('absOwnerEquity').textContent  = fmt(bs.ownerEquity);
+  const pnlEl = document.getElementById('absPnl');
+  pnlEl.textContent = sign(bs.platformPnl);
+  pnlEl.style.color = bs.platformPnl >= 0 ? '#10b981' : '#ef4444';
+  document.getElementById('absAgentPayable').textContent  = fmt(bs.agentPayable);
+  document.getElementById('absClientPayable').textContent = fmt(bs.clientPayable);
+  document.getElementById('absLiabTotal').textContent     = fmt(bs.liabTotal);
+
+  const balanceEl = document.getElementById('absBalanceNote');
+  const diff = Math.abs(bs.assetsTotal - bs.liabTotal);
+  if (diff < 0.01) {
+    balanceEl.className = 'recon-ok';
+    balanceEl.textContent = '✅ Balance sheet balances — Assets = Liabilities + Equity';
+  } else {
+    balanceEl.className = 'recon-warn';
+    balanceEl.innerHTML = `⚠️ Out of balance by 🪙${fmt(diff)} — Assets: 🪙${fmt(bs.assetsTotal)}, Liabilities: 🪙${fmt(bs.liabTotal)}`;
+  }
+}
+
+// ── ADMIN WALLET ──────────────────────────────────────────────────
+function renderAdminWallet() {
+  const fmt = n => parseFloat(n || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('walletReserveCash').textContent = fmt(adminWallet.reserve_cash);
+  document.getElementById('walletCoinsStock').textContent  = fmt(adminWallet.coins_stock);
+}
+
+async function setReserveCash() {
+  const amt = parseFloat(document.getElementById('walletReserveInput').value);
+  if (isNaN(amt) || amt < 0) { showToast('Enter a valid amount', 'error'); return; }
+  const stock = parseFloat(adminWallet.coins_stock || 0);
+  if (amt < stock) {
+    showToast(`Cannot set reserve cash below current coins stock of 🪙${stock.toLocaleString(undefined,{minimumFractionDigits:2})}`, 'error');
+    return;
+  }
+  try {
+    const { error } = await sb.from('admin_wallet').update({ reserve_cash: amt, updated_at: new Date().toISOString() }).eq('id', adminWallet.id);
+    if (error) throw new Error(error.message);
+    adminWallet.reserve_cash = amt;
+    renderAdminWallet();
+    renderBalanceSheet();
+    document.getElementById('walletReserveInput').value = '';
+    await auditLog('SET_RESERVE_CASH', { extra: { reserve_cash: amt } });
+    showToast(`Reserve cash set to ₹${amt.toLocaleString()}`, 'success');
+  } catch(err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+async function mintCoins() {
+  const amt = parseFloat(document.getElementById('walletMintInput').value);
+  if (isNaN(amt) || amt <= 0) { showToast('Enter a valid amount', 'error'); return; }
+  const reserve = parseFloat(adminWallet.reserve_cash || 0);
+  const stock   = parseFloat(adminWallet.coins_stock || 0);
+  // Model B: minting converts reserve_cash → coins_stock
+  if (amt > reserve) {
+    showToast(`Cannot mint more than available reserve cash. Reserve: ₹${reserve.toLocaleString(undefined,{minimumFractionDigits:2})}`, 'error');
+    return;
+  }
+  try {
+    const newStock   = stock + amt;
+    const newReserve = reserve - amt;
+    const { error } = await sb.from('admin_wallet').update({ coins_stock: newStock, reserve_cash: newReserve, updated_at: new Date().toISOString() }).eq('id', adminWallet.id);
+    if (error) throw new Error(error.message);
+    adminWallet.coins_stock   = newStock;
+    adminWallet.reserve_cash  = newReserve;
+    // B11: insert a transaction record so minting appears in the ledger audit trail
+    await sb.from('credit_transactions').insert({
+      sender_id: currentUser.id, receiver_id: currentUser.id,
+      amount: amt, transaction_type: 'MINT_COINS',
+      notes: `Minted coins — stock now 🪙${newStock.toLocaleString()}`
+    }).then(()=>{}).catch(()=>{});
+    renderAdminWallet();
+    renderBalanceSheet();
+    document.getElementById('walletMintInput').value = '';
+    await auditLog('MINT_COINS', { amount: amt, extra: { new_stock: newStock, new_reserve: newReserve } });
+    showToast(`Minted 🪙${amt.toLocaleString()} — reserve ₹${newReserve.toLocaleString(undefined,{minimumFractionDigits:2})}, stock 🪙${newStock.toLocaleString(undefined,{minimumFractionDigits:2})}`, 'success');
+  } catch(err) { showToast('Failed: ' + err.message, 'error'); }
 }
 
 // ── CREATE USER ───────────────────────────────────────────────────
@@ -969,18 +1119,38 @@ async function submitCreateUser() {
 
     if (startBal > 0) {
       if (funderId === currentUser.id) {
-        // Admin is minting — auto-track as owner equity, no balance deducted
-        await sb.from('credit_transactions').insert({ sender_id: currentUser.id, receiver_id: currentUser.id, amount: startBal, transaction_type: 'ADMIN_MINT', notes: `Capital deployment to new ${role.toLowerCase()} ${loginId}` });
+        // B6: check admin's coins_stock before issuing initial balance
+        const { data: walletRow, error: wfe } = await sb.from('admin_wallet').select('id, coins_stock').limit(1).single();
+        if (wfe || !walletRow) throw new Error('Could not read admin wallet.');
+        const currentStock = parseFloat(walletRow.coins_stock || 0);
+        if (currentStock < startBal) throw new Error(`Not enough coins in stock (🪙${currentStock.toLocaleString(undefined,{minimumFractionDigits:2})} available). Mint more coins in Settings first.`);
+
+        // B7: use CREDIT_ISSUE — no ADMIN_MINT
+        const { error: txErr } = await sb.from('credit_transactions').insert({
+          sender_id: currentUser.id, receiver_id: authData.user.id,
+          amount: startBal, transaction_type: 'CREDIT_ISSUE',
+          notes: `Initial balance for new ${role.toLowerCase()} ${loginId}`
+        });
+        if (txErr) throw new Error(txErr.message);
+
+        // Deduct from coins_stock
+        const newStock = currentStock - startBal;
+        const { error: wsErr } = await sb.from('admin_wallet').update({ coins_stock: newStock, updated_at: new Date().toISOString() }).eq('id', walletRow.id);
+        if (wsErr) throw new Error(wsErr.message);
+        adminWallet.coins_stock = newStock;
+
+        // B1: record coins_issued on the new user
+        await sb.from('betting_users').update({ coins_issued: startBal }).eq('id', authData.user.id).then(()=>{}).catch(()=>{});
       } else {
         // Agent funds own client — deduct agent's balance
         const newFunderBal = parseFloat(funderRow.balance) - startBal;
         await sb.from('betting_users').update({ balance: newFunderBal }).eq('id', funderId);
+        await sb.from('credit_transactions').insert({
+          sender_id: funderId, receiver_id: authData.user.id,
+          amount: startBal, transaction_type: 'DEPOSIT',
+          notes: `Initial balance for new ${role.toLowerCase()} ${loginId}`
+        });
       }
-      await sb.from('credit_transactions').insert({
-        sender_id: funderId, receiver_id: authData.user.id,
-        amount: startBal, transaction_type: 'DEPOSIT',
-        notes: `Initial balance for new ${role.toLowerCase()} ${loginId}`
-      });
     }
 
     await auditLog('CREATE_' + role, {
@@ -1039,19 +1209,70 @@ async function submitFunds() {
     if (type === 'DEPOSIT') {
       const newUserBal = parseFloat(user.balance || 0) + amount;
 
+      // Determine if coins come from admin's coins_stock:
+      //   AGENT deposits always come from admin stock.
+      //   CLIENT deposits come from admin stock only when admin is the direct parent.
+      //   CLIENT deposits whose parent is an agent are funded by that agent's balance (existing flow).
+      const isAdminDirectDeposit = user.role === 'AGENT' ||
+        !user.parent_id ||
+        user.parent_id === currentUser.id;
+
+      if (isAdminDirectDeposit) {
+        // Fetch fresh coins_stock to avoid stale in-memory value
+        const { data: walletRow, error: walletFetchErr } = await sb.from('admin_wallet').select('id, coins_stock').limit(1).single();
+        if (walletFetchErr || !walletRow) throw new Error('Could not read admin wallet.');
+        const currentStock = parseFloat(walletRow.coins_stock || 0);
+        if (currentStock < amount) {
+          showToast('Not enough coins in stock. Mint more coins first in Settings.', 'error');
+          return;
+        }
+      }
+
       // Credit limit check — warn if deposit would exceed limit
       const creditLimit = parseFloat(user.credit_limit || 0);
       if (creditLimit > 0 && newUserBal > creditLimit) {
         const over = (newUserBal - creditLimit).toLocaleString(undefined, { minimumFractionDigits: 2 });
         if (!confirm(`⚠️ Credit Limit Warning\n\n${user.login_id}'s balance will reach 🪙${newUserBal.toLocaleString()} — 🪙${over} over their credit limit of 🪙${creditLimit.toLocaleString()}.\n\nProceed anyway?`)) return;
       }
-      // Auto-mint: record capital deployment as owner equity
-      await sb.from('credit_transactions').insert({ sender_id: currentUser.id, receiver_id: currentUser.id, amount, transaction_type: 'ADMIN_MINT', notes: `Capital deployment to ${user.login_id}` });
-      // Insert DEPOSIT transaction — admin is virtual sender (no balance deducted)
-      const { error: txErr } = await sb.from('credit_transactions').insert({ sender_id: currentUser.id, receiver_id: userId, amount, transaction_type: 'DEPOSIT', notes: note || null });
-      if (txErr) throw new Error(txErr.message);
-      const { error: e2 } = await sb.from('betting_users').update({ balance: newUserBal }).eq('id', userId);
-      if (e2) throw new Error(e2.message);
+
+      if (isAdminDirectDeposit) {
+        // Re-fetch coins_stock after the confirm dialog in case of concurrent updates
+        const { data: walletRow2 } = await sb.from('admin_wallet').select('id, coins_stock').limit(1).single();
+        const currentStock2 = parseFloat(walletRow2?.coins_stock || 0);
+        if (currentStock2 < amount) {
+          showToast('Not enough coins in stock. Mint more coins first in Settings.', 'error');
+          return;
+        }
+
+        // B7: use CREDIT_ISSUE for all admin→user deposits regardless of role
+        const { error: txErr } = await sb.from('credit_transactions').insert({ sender_id: currentUser.id, receiver_id: userId, amount, transaction_type: 'CREDIT_ISSUE', notes: note || null });
+        if (txErr) throw new Error(txErr.message);
+
+        // B1: increment coins_issued alongside balance
+        const { error: e2 } = await sb.from('betting_users').update({
+          balance: newUserBal,
+          coins_issued: parseFloat(user.coins_issued || 0) + amount
+        }).eq('id', userId);
+        if (e2) throw new Error(e2.message);
+
+        // Deduct from coins_stock
+        const newStock = currentStock2 - amount;
+        const { error: wErr } = await sb.from('admin_wallet').update({ coins_stock: newStock, updated_at: new Date().toISOString() }).eq('id', walletRow2.id);
+        if (wErr) throw new Error('Deposit succeeded but failed to deduct coins_stock: ' + wErr.message);
+        adminWallet.coins_stock = newStock;
+
+      } else {
+        // CLIENT whose parent is an agent — B7: also use CREDIT_ISSUE for consistency
+        const { error: txErr } = await sb.from('credit_transactions').insert({ sender_id: currentUser.id, receiver_id: userId, amount, transaction_type: 'CREDIT_ISSUE', notes: note || null });
+        if (txErr) throw new Error(txErr.message);
+        // B1: increment coins_issued
+        const { error: e2 } = await sb.from('betting_users').update({
+          balance: newUserBal,
+          coins_issued: parseFloat(user.coins_issued || 0) + amount
+        }).eq('id', userId);
+        if (e2) throw new Error(e2.message);
+      }
+
       await auditLog('DEPOSIT', { targetId: userId, targetLoginId: user.login_id, amount, extra: { note: note || null } });
       showToast(`Deposited 🪙${amount.toLocaleString()} to ${user.login_id}`, 'success');
     } else {
@@ -1062,13 +1283,27 @@ async function submitFunds() {
       if (txErr) throw new Error(txErr.message);
       const { error: e1 } = await sb.from('betting_users').update({ balance: newUserBal }).eq('id', userId);
       if (e1) throw new Error(e1.message);
-      // Chips are retired (burned) regardless of role — admin holds no balance
-      // For AGENT returns: coins leave circulation; agent receivable is tracked via transactions
-      // For CLIENT: cash settlement — client chips burned
+
+      if (user.role === 'AGENT') {
+        // B5: chips return to admin — restore coins_stock
+        const newStock = parseFloat(adminWallet.coins_stock || 0) + amount;
+        const { error: wErr } = await sb.from('admin_wallet').update({ coins_stock: newStock, updated_at: new Date().toISOString() }).eq('id', adminWallet.id);
+        if (wErr) throw new Error('Withdrawal recorded but failed to restore coins_stock: ' + wErr.message);
+        adminWallet.coins_stock = newStock;
+      } else if (user.role === 'CLIENT') {
+        // B3: admin received physical cash — increment reserve_cash
+        const newReserve = parseFloat(adminWallet.reserve_cash || 0) + amount;
+        const { error: wErr } = await sb.from('admin_wallet').update({ reserve_cash: newReserve, updated_at: new Date().toISOString() }).eq('id', adminWallet.id);
+        if (wErr) throw new Error('Withdrawal recorded but failed to update reserve_cash: ' + wErr.message);
+        adminWallet.reserve_cash = newReserve;
+        // B2: track cash received from this client
+        await sb.from('betting_users').update({ cash_paid: parseFloat(user.cash_paid || 0) + amount }).eq('id', userId).then(()=>{}).catch(()=>{});
+      }
+
       await auditLog('WITHDRAWAL', { targetId: userId, targetLoginId: user.login_id, amount, extra: { note: note || null } });
       const toastMsg = user.role === 'CLIENT'
-        ? `Cash settled 🪙${amount.toLocaleString()} with ${user.login_id} (chips burned)`
-        : `Withdrawn 🪙${amount.toLocaleString()} from ${user.login_id}`;
+        ? `Cash settled 🪙${amount.toLocaleString()} with ${user.login_id} (chips burned, reserve +₹${amount.toLocaleString()})`
+        : `Withdrawn 🪙${amount.toLocaleString()} from ${user.login_id} (coins_stock restored)`;
       showToast(toastMsg, 'success');
     }
     closeModal('modalFunds');
@@ -1948,12 +2183,13 @@ async function submitAgentSettlement() {
   const agent = allUsers.find(u => u.id === agentId);
   if (!agent) return;
 
-  // Validate amount doesn't exceed what the agent owes (same formula as settlement card)
-  const dep  = allTransactions.filter(t => t.receiver_id === agentId && t.transaction_type === 'DEPOSIT').reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  // B9: include CREDIT_ISSUE alongside DEPOSIT — new agent deposits use CREDIT_ISSUE
+  const dep  = allTransactions.filter(t => t.receiver_id === agentId && (t.transaction_type === 'DEPOSIT' || t.transaction_type === 'CREDIT_ISSUE')).reduce((s,t)=>s+parseFloat(t.amount||0),0);
   const rec  = allTransactions.filter(t => t.sender_id === agentId && t.transaction_type === 'WITHDRAWAL').reduce((s,t)=>s+parseFloat(t.amount||0),0);
   const setl = allTransactions.filter(t => t.sender_id === agentId && t.transaction_type === 'AGENT_SETTLEMENT').reduce((s,t)=>s+parseFloat(t.amount||0),0);
   const valClientIds = new Set(allUsers.filter(u => u.role === 'CLIENT' && u.parent_id === agentId).map(c => c.id));
-  const dirTo   = allTransactions.filter(t => t.transaction_type === 'DEPOSIT'    && t.sender_id   === currentUser.id && valClientIds.has(t.receiver_id)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  // B9: also include CREDIT_ISSUE for direct-to-client deposits
+  const dirTo   = allTransactions.filter(t => (t.transaction_type === 'DEPOSIT' || t.transaction_type === 'CREDIT_ISSUE') && t.sender_id === currentUser.id && valClientIds.has(t.receiver_id)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
   const dirFrom = allTransactions.filter(t => t.transaction_type === 'WITHDRAWAL' && t.receiver_id === currentUser.id && valClientIds.has(t.sender_id)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
   const outstanding = (dep - rec) + dirTo - dirFrom - setl;
   if (amount > outstanding + 0.01)
@@ -1966,8 +2202,17 @@ async function submitAgentSettlement() {
       notes: note || `Cash settlement from ${agent.login_id}`
     });
     if (error) throw new Error(error.message);
+
+    // B4: admin received cash — increment reserve_cash
+    const newReserve = parseFloat(adminWallet.reserve_cash || 0) + amount;
+    const { error: wErr } = await sb.from('admin_wallet').update({ reserve_cash: newReserve, updated_at: new Date().toISOString() }).eq('id', adminWallet.id);
+    if (!wErr) adminWallet.reserve_cash = newReserve;
+
+    // B2: track cash paid by this agent
+    await sb.from('betting_users').update({ cash_paid: parseFloat(agent.cash_paid || 0) + amount }).eq('id', agentId).then(()=>{}).catch(()=>{});
+
     await auditLog('AGENT_SETTLEMENT', { targetId: agentId, targetLoginId: agent.login_id, amount, extra: { note: note || null } });
-    showToast(`Settlement of 🪙${amount.toLocaleString()} recorded for ${agent.login_id}`, 'success');
+    showToast(`Settlement of 🪙${amount.toLocaleString()} recorded for ${agent.login_id} (reserve +₹${amount.toLocaleString()})`, 'success');
     closeModal('modalAgentSettle');
     await refreshData();
   } catch(err) { errEl.textContent = err.message; }
@@ -2589,6 +2834,8 @@ function togglePwVis(userId, pw) {
   window.saveDefaults = saveDefaults;
   window.confirmClearLedger = confirmClearLedger;
   window.confirmPlatformReset = confirmPlatformReset;
+  window.setReserveCash = setReserveCash;
+  window.mintCoins = mintCoins;
 
   // Export / Filters
   window.downloadLedgerCSV = downloadLedgerCSV;
@@ -2605,6 +2852,7 @@ function togglePwVis(userId, pw) {
   window.renderMarkets = renderMarkets;
   window.renderAuditLog = renderAuditLog;
   window.renderBalanceSheet = renderBalanceSheet;
+  window.renderAccountingBS = renderAccountingBS;
 
   // Audit
   window.auditLog = auditLog;

@@ -604,6 +604,39 @@
         </div>
       </div>
 
+      <!-- Reserve Cash & Coins Stock -->
+      <div class="settings-section" style="margin-top:20px;">
+        <h3>🏦 Reserve Cash &amp; Coins Stock</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+          <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:14px;">
+            <div class="settings-label" style="margin-bottom:4px;">Reserve Cash (INR)</div>
+            <div class="mono" style="font-size:1.3rem;font-weight:700;color:#3b82f6;">₹ <span id="walletReserveCash">—</span></div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:14px;">
+            <div class="settings-label" style="margin-bottom:4px;">Coins Stock (Minted)</div>
+            <div class="mono" style="font-size:1.3rem;font-weight:700;color:#10b981;">🪙 <span id="walletCoinsStock">—</span></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div>
+            <div style="font-size:0.78rem;font-weight:700;color:#94a3b8;margin-bottom:8px;">Set Reserve Cash</div>
+            <div style="display:flex;gap:8px;">
+              <input type="number" id="walletReserveInput" class="form-input mono" placeholder="Amount (INR)" min="0" step="100" style="flex:1;">
+              <button class="btn btn-primary" onclick="setReserveCash()">Set</button>
+            </div>
+            <div class="form-hint">Sets the physical INR held by admin.</div>
+          </div>
+          <div>
+            <div style="font-size:0.78rem;font-weight:700;color:#94a3b8;margin-bottom:8px;">Mint Coins</div>
+            <div style="display:flex;gap:8px;">
+              <input type="number" id="walletMintInput" class="form-input mono" placeholder="Coins to mint" min="1" step="100" style="flex:1;">
+              <button class="btn btn-success" onclick="mintCoins()">Mint</button>
+            </div>
+            <div class="form-hint">Converts reserve cash to coins. Cannot exceed reserve.</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Balance Sheet -->
       <div class="settings-section" style="margin-top:20px;">
         <h3>📊 Platform Balance Sheet</h3>
@@ -636,8 +669,79 @@
             <div class="settings-label" style="margin-bottom:4px;">Platform P&amp;L (Bets)</div>
             <div class="mono" style="font-size:1.1rem;" id="bsPnlCell">🪙 <span id="bsPlatformPnl">—</span></div>
           </div>
+          <div>
+            <div class="settings-label" style="margin-bottom:4px;">Reserve Cash (Wallet)</div>
+            <div class="mono" style="font-size:1.1rem;color:#3b82f6;">₹ <span id="bsWalletReserve">—</span></div>
+          </div>
+          <div>
+            <div class="settings-label" style="margin-bottom:4px;">Coins Stock (Wallet)</div>
+            <div class="mono" style="font-size:1.1rem;color:#10b981;">🪙 <span id="bsWalletStock">—</span></div>
+          </div>
         </div>
         <div style="margin-top:14px;padding:10px 14px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:0.82rem;color:#94a3b8;" id="bsIntegrityNote">—</div>
+      </div>
+
+      <!-- Accounting Balance Sheet -->
+      <div class="settings-section" style="margin-top:20px;">
+        <h3>📒 Accounting Balance Sheet</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+          <!-- ASSETS -->
+          <div>
+            <div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #334155;">ASSETS</div>
+            <div class="settings-row">
+              <div class="settings-label">Reserve Cash (INR)</div>
+              <div class="mono" style="color:#3b82f6;">₹ <span id="absReserveCash">—</span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-label">Coins Stock (Undeployed)</div>
+              <div class="mono" style="color:#10b981;">🪙 <span id="absCoinsStock">—</span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-label">Agent Receivable</div>
+              <div class="mono">🪙 <span id="absAgentRec">—</span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-label">Client Receivable</div>
+              <div class="mono">🪙 <span id="absClientRec">—</span></div>
+            </div>
+            <div class="settings-row" style="border-bottom:none;">
+              <div class="settings-label">Playing Cash (In Wallets)</div>
+              <div class="mono">🪙 <span id="absPlayingCash">—</span></div>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:2px solid #475569;display:flex;justify-content:space-between;align-items:center;">
+              <div style="font-size:0.78rem;font-weight:700;color:white;">Total Assets</div>
+              <div class="mono" style="font-size:1.1rem;font-weight:700;color:white;">🪙 <span id="absAssetsTotal">—</span></div>
+            </div>
+          </div>
+
+          <!-- LIABILITIES + EQUITY -->
+          <div>
+            <div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #334155;">LIABILITIES &amp; EQUITY</div>
+            <div class="settings-row">
+              <div class="settings-label">Owner Equity (Capital In)</div>
+              <div class="mono" style="color:#a78bfa;">₹ <span id="absOwnerEquity">—</span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-label">Platform P&amp;L</div>
+              <div class="mono" id="absPnl">—</div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-label">Agent Payable</div>
+              <div class="mono" style="color:#ef4444;">🪙 <span id="absAgentPayable">—</span></div>
+            </div>
+            <div class="settings-row" style="border-bottom:none;">
+              <div class="settings-label">Client Payable</div>
+              <div class="mono" style="color:#ef4444;">🪙 <span id="absClientPayable">—</span></div>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:2px solid #475569;display:flex;justify-content:space-between;align-items:center;">
+              <div style="font-size:0.78rem;font-weight:700;color:white;">Total Liabilities</div>
+              <div class="mono" style="font-size:1.1rem;font-weight:700;color:white;">🪙 <span id="absLiabTotal">—</span></div>
+            </div>
+          </div>
+
+        </div>
+        <div id="absBalanceNote" style="margin-top:14px;padding:10px 14px;border-radius:8px;font-size:0.82rem;">—</div>
       </div>
 
       <!-- Danger Zone -->
